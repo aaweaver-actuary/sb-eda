@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 from ..binary_contingency_table import binary_contingency_table
+from ..binary_pb_correlation import binary_pb_correlation_test, binary_pb_correlation_p_value, binary_pb_correlation_hypothesis_test
 
 @pytest.fixture
 def has_cancer():
@@ -12,7 +13,7 @@ def fake_binary_pred():
     return pd.Series([1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0])
 
 def are_arrays_close(arr1, arr2):
-    return np.allclose(arr1, arr2, atol=1e-2)
+    return np.allclose(arr1, arr2, atol=1e-5)
 
 def test_binary_contingency_table(has_cancer, fake_binary_pred):
     target = has_cancer
@@ -30,3 +31,44 @@ def test_binary_contingency_table(has_cancer, fake_binary_pred):
         but got
         
         {actual.values}"""
+
+def test_binary_pb_correlation(has_cancer, fake_binary_pred):
+    target = has_cancer
+    feature = fake_binary_pred
+    expected = pd.DataFrame(
+        np.array([[0.001, 0.7116, 0.0, 1],
+                  [0.01, 0.7116, 0.0, 1],
+                  [0.05, 0.7116, 0.0, 1],
+                  [0.1, 0.7116, 0.0, 1],
+                  [0.2, 0.7116, 0.0, 1],
+                  [0.25, 0.7116, 0.0, 1],
+                  [0.5, 0.7116, 0.0, 1]])
+                  , columns=['alpha', 'correlation', 'p-value', 'reject_null'])
+
+    actual_test = np.round(binary_pb_correlation_test(target, feature), 4)
+    actual_pvalue = np.round(binary_pb_correlation_p_value(target, feature), 4)
+    actual_hypothesis_test = binary_pb_correlation_hypothesis_test(target, feature)
+    actual_hypothesis_test['correlation'] = actual_hypothesis_test['correlation'].round(4).astype(float)
+    actual_hypothesis_test['p_value'] = actual_hypothesis_test['p_value'].round(4).astype(float)
+    actual_hypothesis_test['reject_null'] = actual_hypothesis_test['reject_null'].astype(int).astype(float)
+
+    assert actual_test==expected['correlation'].values[0], \
+        f"""BINARY-002-A:
+        Expected test statistic: {expected['correlation'].values[0]}
+        Got: {actual_test}"""
+
+    print('passed1')
+    assert actual_pvalue==expected['p-value'].values[0], \
+        f"""BINARY-002-B:
+        Expected p-value: {expected['p-value'].values[0]}
+        Got: {actual_pvalue}"""
+
+    print('passed2')
+    assert are_arrays_close(actual_hypothesis_test.values, expected.values), \
+        f"""BINARY-002-C:
+        Expected hypothesis test results:
+        {expected.values}
+        Got:
+        {actual_hypothesis_test.values}"""
+
+
