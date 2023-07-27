@@ -2,7 +2,12 @@ import pandas as pd
 import numpy as np
 import pytest
 from ..binary_contingency_table import binary_contingency_table
-from ..binary_pb_correlation import binary_pb_correlation_test, binary_pb_correlation_p_value, binary_pb_correlation_hypothesis_test
+from ..binary_pb_correlation import (binary_pb_correlation_test,
+                                     binary_pb_correlation_p_value,
+                                     binary_pb_correlation_hypothesis_test)
+from ..binary_chi2_test import (binary_chi2_test,
+                           binary_chi2_p_value,
+                            binary_chi2_hypothesis_test)
 
 @pytest.fixture
 def has_cancer():
@@ -71,4 +76,42 @@ def test_binary_pb_correlation(has_cancer, fake_binary_pred):
         Got:
         {actual_hypothesis_test.values}"""
 
+
+def test_binary_chi2_test(has_cancer, fake_binary_pred):
+    target = has_cancer
+    feature = fake_binary_pred
+    expected = pd.DataFrame(np.array(
+        [[0.001, 285.1548, 0.0, True],
+         [0.01, 285.1548, 0.0, True],
+         [0.05, 285.1548, 0.0, True],
+         [0.1, 285.1548, 0.0, True],
+         [0.2, 285.1548, 0.0, True],
+         [0.25, 285.1548, 0.0, True],
+         [0.5, 285.1548, 0.0, True]]
+    ))
+
+    expected_test = expected[1].values[0]
+    expected_pvalue = expected[2].values[0]
+    expected_hypothesis_test = expected
+
+    actual_test = float(binary_chi2_test(target, feature))
+    actual_pvalue = float(binary_chi2_p_value(target, feature))
+    actual_hypothesis_test = binary_chi2_hypothesis_test(target, feature).astype(float).round(4).astype(float)
+
+    assert actual_test==expected_test, \
+        f"""BINARY-003-A:
+        Expected test statistic: {expected_test}
+        Got: {actual_test}"""
+
+    assert actual_pvalue==expected_pvalue, \
+        f"""BINARY-003-B:
+        Expected p-value: {expected_pvalue}
+        Got: {actual_pvalue}"""
+
+    assert are_arrays_close(actual_hypothesis_test.values, expected_hypothesis_test.values), \
+        f"""BINARY-003-C:
+        Expected hypothesis test results:
+        {expected_hypothesis_test.values}
+        Got:
+        {actual_hypothesis_test.values}"""
 
