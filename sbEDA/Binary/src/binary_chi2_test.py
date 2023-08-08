@@ -79,6 +79,6 @@ def binary_chi2_hypothesis_test(target:pd.Series, features:pd.Series, alpha_leve
     results['significance_level'] = alpha_levels
     results['chi_2_test_statistic'] = test_statistic
     results['p_value'] = p_value
-    results['reject_null'] = results['p_value'] < results['significance_level']
+    results['is_significant'] = results['p_value'] < results['significance_level']
 
     return results

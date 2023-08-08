@@ -185,11 +185,10 @@ def binary_recall(target:pd.Series,
 
     recall = recall_score(target, features)
     tp = binary_true_positive(target, features)
-    tn = binary_true_negative(target, features)
-    fp = binary_false_positive(target, features)
+    fn = binary_false_negative(target, features)
 
-    assert recall == tp / (tp + tn), \
-        f"""Recall should be {tp} / ({tp} + {tn}) = {tp / (tp + tn)},
+    assert np.round(recall, 6) == np.round(tp / (tp + fn), 6), \
+        f"""Recall should be {tp} / ({tp} + {fn}) = {tp / (tp + fn)},
         but is {recall}."""
 
     if round_to is not None:
@@ -227,7 +226,6 @@ def binary_precision(target:pd.Series,
     # calculate precision
     precision = precision_score(target, features)
     tp = binary_true_positive(target, features)
-    tn = binary_true_negative(target, features)
     fp = binary_false_positive(target, features)
     assert precision == tp / (tp + fp), \
         f"""Precision should be {tp} / ({tp} + {fp}) = {tp / (tp + fp)},
@@ -342,9 +340,9 @@ def binary_specificity(target:pd.Series,
     _validate_input(target, features)
 
     # calculate specificity
-    specificity = recall_score(target, features)
     tn = binary_true_negative(target, features)
     fp = binary_false_positive(target, features)
+    specificity = tn / (tn + fp)
     assert specificity == tn / (tn + fp), \
         f"""Specificity should be {tn} / ({tn} + {fp}) = {tn / (tn + fp)},
         but is {specificity}."""
@@ -538,8 +536,175 @@ def binary_ave_precision(target:pd.Series,
 
     return ave_precision
 
+def binary_fowlkes_mallows_index(target: pd.Series,
+                                 features: pd.Series,
+                                 round_to: int = None
+                                 ) -> float:
+    """
+    Calculates the Fowlkes-Mallows index in a binary target and binary features.
+
+    The F-M index is calculated as the geometric mean of the precision and
+    recall, with 1 being the best score and 0 being the worst score. It is
+    defined as:
+
+        TP / sqrt((TP + FP) * (TP + FN))
+
+    Parameters
+    ----------
+    target : pd.Series
+        Binary target column.
+    features : pd.Series
+        Binary feature column.
+    round_to : int, optional
+        If not None, the Fowlkes-Mallows index will be rounded to this number
+        of decimals, by default None
+
+    Returns
+    -------
+    float
+        Fowlkes-Mallows index.
+    """
+    # validate input
+    _validate_input(target, features)
+
+    # calculate Fowlkes-Mallows index
+    tp = binary_true_positive(target, features)
+    fp = binary_false_positive(target, features)
+    fn = binary_false_negative(target, features)
+    
+    fowlkes_mallows_index = tp / np.sqrt((tp + fp) * (tp + fn))
+
+    if round_to is not None:
+        fowlkes_mallows_index = np.round(fowlkes_mallows_index, round_to)
+
+    return fowlkes_mallows_index
+
 # balanced_accuracy_score
+def binary_balanced_accuracy(target: pd.Series,
+                             features: pd.Series,
+                             round_to: int = None
+                             ) -> float:
+    """
+    Calculates the balanced accuracy in a binary target and binary features.
+
+    The balanced accuracy is calculated as the arithmetic mean of the
+    sensitivity and specificity, with 1 being the best score and 0 being the
+    worst score. It is defined as:
+
+        (TP / (TP + FN) + TN / (TN + FP)) / 2
+
+    The balanced accuracy is also known as the average accuracy. It is used to
+    evaluate binary classification problems which have an unequal number of
+    observations in each class and where TP and TN are more important than FP
+    and FN.
+    
+    It is useful when there is high class imbalance.
+
+    Parameters
+    ----------
+    target : pd.Series
+        Binary target column.
+    features : pd.Series
+        Binary feature column.
+    round_to : int, optional
+        If not None, the balanced accuracy will be rounded to this number
+        of decimals, by default None
+
+    Returns
+    -------
+    float
+        Balanced accuracy.
+    """
+    # validate input
+    _validate_input(target, features)
+
+    # calculate balanced accuracy
+    tp = binary_true_positive(target, features)
+    tn = binary_true_negative(target, features)
+    fp = binary_false_positive(target, features)
+    fn = binary_false_negative(target, features)
+
+    balanced_accuracy = balanced_accuracy_score(target, features)
+    balanced_accuracy_check = (tp / (tp + fn) + tn / (tn + fp)) / 2
+
+    # test that the two methods give the same result
+    assert balanced_accuracy == balanced_accuracy_check, \
+        f"""Balanced accuracy should be
+        ({tp} / ({tp} + {fn}) + {tn} / ({tn} + {fp})) / 2 = {balanced_accuracy_check},
+        but sklearn.metrics.balanced_accuracy_score gives
+        {balanced_accuracy}."""
+    
+    if round_to is not None:
+        balanced_accuracy = np.round(balanced_accuracy, round_to)
+
+    return balanced_accuracy
+
 # fbeta_score,
+def binary_fbeta_score(target: pd.Series,
+                       features: pd.Series,
+                       beta: float = 1,
+                       round_to: int = None
+                       ) -> float:
+    """
+    Calculates the F-beta score in a binary target and binary features.
+
+    The F-beta score is the weighted harmonic mean of the precision and recall,
+    with 1 being the best score and 0 being the worst score. It is defined as:
+
+        (1 + beta^2) * (precision * recall) / (beta^2 * precision + recall)
+
+    The `beta` parameter determines the weight of recall precision relative to
+    recall. beta < 1 gives more weight to recall, beta > 1 gives more weight to
+    precision, and beta = 1 gives equal weight to both precision and recall.
+
+    Parameters
+    ----------
+    target : pd.Series
+        Binary target column.
+    features : pd.Series
+        Binary feature column.
+    beta : float, optional
+        The beta parameter determines the weight of the precision in the
+        combined score. beta < 1 gives more weight to recall, beta > 1 gives
+        more weight to precision, and beta = 1 gives equal weight to both
+        precision and recall, by default 1
+    round_to : int, optional
+        If not None, the F-beta score will be rounded to this number
+        of decimals, by default None
+
+    Returns
+    -------
+    float
+        F-beta score.
+    """
+    # validate input
+    _validate_input(target, features)
+
+    # calculate F-beta score
+    fbeta = fbeta_score(target, features, beta=beta)
+
+    # calculate F-beta score manually
+    tp = binary_true_positive(target, features)
+    fp = binary_false_positive(target, features)
+    fn = binary_false_negative(target, features)
+    beta2 = beta**2
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    fbeta_check = (1 + beta2) * (precision * recall) / (beta2 * precision + recall)
+
+    # test that the two methods give the same result
+    assert fbeta == fbeta_check, \
+        f"""F-beta score should be
+(1 + beta^2) * (precision * recall) / (beta^2 * precision + recall) = 
+(1 + {beta}^2) * ({precision} * {recall}) / ({beta}^2 * {precision} + {recall}) = \
+{fbeta_check}"""
+
+    # round if requested
+    if round_to is not None:
+        fbeta = np.round(fbeta, round_to)
+
+    return fbeta
+
 #  jaccard_score,
 #  hinge_loss,
 #  log_loss,

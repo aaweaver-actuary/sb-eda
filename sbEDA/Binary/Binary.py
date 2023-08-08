@@ -5,4 +5,5 @@ class Binary(base):
     def __init__(self, df:pd.DataFrame):
         super().__init__(df)
         
+        
     

@@ -69,5 +69,5 @@ def binary_pb_correlation_hypothesis_test(target:pd.Series,
     results['significance_level'] = alpha_levels
     results['correlation'] = binary_pb_correlation_test(target, features)
     results['p_value'] = binary_pb_correlation_p_value(target, features)
-    results['reject_null'] = results['p_value'] < results['significance_level']
+    results['is_significant'] = results['p_value'] < results['significance_level']
     return results
