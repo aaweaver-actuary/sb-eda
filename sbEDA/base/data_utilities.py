@@ -34,7 +34,11 @@ series is categorical or not.
 import pandas as pd
 import numpy as np
 
-from testingdata import *                        
+import warnings
+
+from testingdata import *
+examples = get_examples()
+
 
 # first takes a series and returns a boolean representing whether the
 # series is binary or not
@@ -98,40 +102,38 @@ def is_binary(s: pd.Series) -> bool:
 # extend the pandas series class to include the is_binary method
 pd.Series.is_binary = is_binary 
 
-test_results = {}
-test_results["binary"] = {}
-
 # function to test the is_binary method
-def test_is_binary(s: pd.Series, expected: bool, test):
+def test_is_binary(t:str, s: pd.Series, expected: bool):
     """
     Tests the is_binary method on a series, and returns True if the
     result matches the expected value, and False otherwise.
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
     assert s.is_binary() == expected, \
-        f"""is_binary method is not correct for the series:
+        f"""is_binary method is not correct for the {t} series:
 {s}
 Expected: {expected}
 Actual: {s.is_binary()}"""
 
+example_type = 'binary'
 # run the true test cases
-for s in binary_examples():
+for i, s in enumerate(examples
+                     .loc[examples['type'].eq(example_type), 'examples']
+                     .tolist()):
     s = pd.Series(s)
-    test_is_binary(s, True)
+    t = examples\
+        .loc[examples['type'].eq(example_type), 'type']\
+        .tolist()[i]
+    test_is_binary(t, s, True)
 
-# run the false test cases
-false_tests = date_examples() + \
-    categorical_examples() + \
-    finite_numeric_examples() + \
-    other_numeric_examples() + \
-    object_examples()
-
-for s in false_tests:
+for i, s in enumerate(examples
+                     .loc[examples['type'].ne(example_type), 'examples']
+                     .tolist()):
     s = pd.Series(s)
-    test_is_binary(s, False)
-
-
-
+    t = examples\
+        .loc[examples['type'].ne(example_type), 'type']\
+        .tolist()[i]
+    test_is_binary(t, s, False)
 
 # next, we extend the pandas series class to include the is_finite_numeric
 def is_finite_numeric(s: pd.Series) -> bool:
@@ -210,19 +212,47 @@ def is_finite_numeric(s: pd.Series) -> bool:
 # extend the pandas series class to include the is_finite_numeric method
 pd.Series.is_finite_numeric = is_finite_numeric
 
-# test the is_finite_numeric method
-# try:
-#   test_methods("finite_numeric")
-# except AssertionError:
-#   print("is_finite_numeric method is not correct")
-#   raise
+# function to test the is_finite_numeric method
+def test_is_finite_numeric(t:str, s: pd.Series, expected: bool):
+    """
+    Tests the is_finite_numeric method on a series, and returns True if the
+    result matches the expected value, and False otherwise.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+    assert s.is_finite_numeric() == expected, \
+        f"""is_finite_numeric method is not correct for the {t} series:
+{s}
+Expected: {expected}
+Actual: {s.is_finite_numeric()}"""
+
+example_type = 'finite_numeric'
+# run the true test cases
+for i, s in enumerate(examples
+                     .loc[examples['type'].eq(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].eq(example_type), 'type']\
+        .tolist()[i]
+    test_is_finite_numeric(t, s, True)
+
+for i, s in enumerate(examples
+                     .loc[examples['type'].ne(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].ne(example_type), 'type']\
+        .tolist()[i]
+    test_is_finite_numeric(t, s, False)
 
 # next, we extend the pandas series class to include the is_date method
-def is_date(s: pd.Series) -> bool:
+def is_date(s: pd.Series,
+            categorical_cutoff: int = 100) -> bool:
     """
     Determines whether a series is a date or not. If the series is a date,
     then it is a date. Otherwise, it is not a date.
     """
+    unique_values = s.unique()
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # make sure the series is not binary
@@ -230,41 +260,99 @@ def is_date(s: pd.Series) -> bool:
         return False
 
     # make sure the series is not finite numeric
-    if s.is_finite_numeric():
+    elif s.is_finite_numeric():
         return False
 
     # if series is numeric, perform further checks
-    if pd.api.types.is_numeric_dtype(s):
-        if (s < 0).any() or (s > 1e10).any() or (s != s.astype(int)).any():
+    elif pd.api.types.is_numeric_dtype(s):
+        try:
+            if (s < 0).any() or \
+               (s > 1e10).any() or \
+               (s.dropna() != s.dropna().astype(int)).any():
+                return False
+            elif len(unique_values) <= categorical_cutoff:
+                return False
+        except TypeError:
             return False
 
     # try to convert the series to a date
-    try:
-        parsed = pd.to_datetime(s, errors='coerce')
-        if pd.isnull(parsed).sum() / len(s) > 0.2:  # more than 20% could not be parsed as dates
+    else:
+        try:
+            # catch warnings that occur when converting to date
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                parsed = pd.to_datetime(s, errors='coerce')
+
+            # if any of the parsed dates are 1/1/1970, then it is not a date
+            if (parsed.dt.year.eq(1970).any() & 
+                parsed.dt.month.eq(1).any() & 
+                parsed.dt.day.eq(1).any()).any():
+                return False
+
+            if pd.isnull(parsed).sum() / s.shape[0] > 0.05:  # more than 10% could not be parsed as dates
+                return False
+            # check if parsed results have day, month, year components
+            has_components = (~parsed.dt.day.isnull() & \
+                              ~parsed.dt.month.isnull() & \
+                              ~parsed.dt.year.isnull()).all()
+
+            if has_components:
+                return True
+            # make sure the series is not categorical
+            elif len(unique_values) < categorical_cutoff:
+                return False
+            
+            else:
+                return False
+        except (TypeError,
+                ValueError,
+                OverflowError,
+                AttributeError,
+                pd.errors.OutOfBoundsDatetime):
             return False
-        # check if parsed results have day, month, year components
-        has_components = (parsed.dt.day.notnull() & parsed.dt.month.notnull() & parsed.dt.year.notnull()).all()
-        return has_components
-    except (ValueError, TypeError, OverflowError):
-        return False
 
     
 # extend the pandas series class to include the is_date method
 pd.Series.is_date = is_date
 
-# test the is_date method
-# try:
-#   test_methods("date")
-# except AssertionError:
-#   print("is_date method is not correct")
-#   raise
+# # function to test the is_date method
+def test_is_date(t:str, s: pd.Series, expected: bool):
+    """
+    Tests the is_date method on a series, and returns True if the
+    result matches the expected value, and False otherwise.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+    assert s.is_date() == expected, \
+        f"""is_date method is not correct for the {t} series:
+{s}
+Expected: {expected}
+Actual: {s.is_date()}"""
+
+example_type = 'date'
+# run the true test cases
+for i, s in enumerate(examples
+                     .loc[examples['type'].eq(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].eq(example_type), 'type']\
+        .tolist()[i]
+    test_is_date(t, s, True)
+
+for i, s in enumerate(examples
+                     .loc[examples['type'].ne(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].ne(example_type), 'type']\
+        .tolist()[i]
+    test_is_date(t, s, False)
 
 
 # next, we extend the pandas series class to include the is_categorical
 # method
 def is_categorical(s: pd.Series,
-                   categorical_cutoff:float = 0.05) -> bool:
+                   categorical_cutoff: int = 100) -> bool:
     """
     Determines whether a series is categorical or not. If the series has
     less than (s.shape * categorical_cutoff) unique values, then it is
@@ -286,25 +374,43 @@ def is_categorical(s: pd.Series,
 
     # if the series is binary, then it is not categorical
     if s.is_binary():
+        # print('binary')
+        return False
+    
+    # if there are any nan values, then the series is not categorical
+    elif s.isnull().any():
+        return False
+    
+    # if the series is a float type with a non-zero fraction, then it is
+    # not categorical
+    elif pd.api.types.is_float_dtype(s) and \
+         s.dropna().apply(lambda x: x - int(x)).any():
         return False
 
     # if the series is a date, then it is not categorical
     elif s.is_date():
+        # print('date')
+        return False
+    
+    # if the series is finite numeric, then it is not categorical
+    elif s.is_finite_numeric():
+        # print('finite numeric')
         return False
 
-    # if the series has less than (n_rows * categorical_cutoff) unique
+    # if the series has less than categorical_cutoff unique
     # values, then it is categorical
-    elif len(unique_values) < categorical_cutoff * s.shape[0]:
+    elif unique_values.shape[0] < categorical_cutoff:
         return True
     
-    # if there are fewer than 15 unique values, then the series is
+    # if there are fewer than 50 unique values, then the series is
     # categorical regardless of the categorical_cutoff
-    elif len(unique_values) < 15:
+    elif unique_values.shape[0] < 50:
         return True
     
     # the series is a set of integers whose max distance between
     # consecutive integers is 1, then the series is categorical
     elif max_distance_between_floats_and_ints_is_one():
+        # print('max distance between floats and ints is one')
         return True
 
     # otherwise, the series is not categorical
@@ -314,12 +420,39 @@ def is_categorical(s: pd.Series,
 # extend the pandas series class to include the is_categorical method
 pd.Series.is_categorical = is_categorical
 
-# test the is_categorical method
-# try:
-#   test_methods("categorical")
-# except AssertionError:
-#   print("is_categorical method is not correct")
-#   raise
+# # function to test the is_categorical method
+def test_is_categorical(t:str, s: pd.Series, expected: bool):
+    """
+    Tests the is_categorical method on a series, and returns True if the
+    result matches the expected value, and False otherwise.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+    assert s.is_categorical() == expected, \
+        f"""is_categorical method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {expected}
+Actual: {s.is_categorical()}"""
+
+example_type = 'categorical'
+# run the true test cases
+for i, s in enumerate(examples
+                     .loc[examples['type'].eq(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].eq(example_type), 'type']\
+        .tolist()[i]
+    test_is_categorical(t, s, True)
+
+for i, s in enumerate(examples
+                     .loc[examples['type'].ne(example_type), 'examples']
+                     .tolist()):
+    s = pd.Series(s)
+    t = examples\
+        .loc[examples['type'].ne(example_type), 'type']\
+        .tolist()[i]
+    test_is_categorical(t, s, False)
 
 # next, we extend the pandas series class to include the is_other_numeric method, which
 # serves as a catch-all for numeric series that are not binary, date, categorical, or

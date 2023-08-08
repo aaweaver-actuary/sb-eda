@@ -109,3 +109,25 @@ def object_examples():
         char_gen(10, 500),
     ] 
     return object_examples
+
+def get_examples():
+    binary = pd.DataFrame({"examples":binary_examples()})
+    binary["type"] = "binary"
+
+    date = pd.DataFrame({"examples":date_examples()})
+    date["type"] = "date"
+
+    categorical = pd.DataFrame({"examples":categorical_examples()})
+    categorical["type"] = "categorical"
+
+    finite_numeric = pd.DataFrame({"examples":finite_numeric_examples()})
+    finite_numeric["type"] = "finite_numeric"
+
+    other_numeric = pd.DataFrame({"examples":other_numeric_examples()})
+    other_numeric["type"] = "other_numeric"
+
+    object_ = pd.DataFrame({"examples":object_examples()})
+    object_["type"] = "object"
+
+    examples = pd.concat([binary, date, categorical, finite_numeric, other_numeric, object_])
+    return examples
