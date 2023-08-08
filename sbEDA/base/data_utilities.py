@@ -1,3 +1,5 @@
+DEV = True
+
 """
 # Description
 
@@ -37,7 +39,10 @@ import numpy as np
 import warnings
 
 from testingdata import *
+from reformatted_testingdata import *
+
 examples = get_examples()
+examples_re = get_examples_re()
 
 
 # first takes a series and returns a boolean representing whether the
@@ -103,7 +108,7 @@ def is_binary(s: pd.Series) -> bool:
 pd.Series.is_binary = is_binary 
 
 # function to test the is_binary method
-def test_is_binary(t:str, s: pd.Series, expected: bool):
+def _test_is_binary(t:str, s: pd.Series, expected: bool):
     """
     Tests the is_binary method on a series, and returns True if the
     result matches the expected value, and False otherwise.
@@ -115,25 +120,27 @@ def test_is_binary(t:str, s: pd.Series, expected: bool):
 Expected: {expected}
 Actual: {s.is_binary()}"""
 
-example_type = 'binary'
-# run the true test cases
-for i, s in enumerate(examples
-                     .loc[examples['type'].eq(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].eq(example_type), 'type']\
-        .tolist()[i]
-    test_is_binary(t, s, True)
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'binary'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_binary(t, s, True)
 
-for i, s in enumerate(examples
-                     .loc[examples['type'].ne(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].ne(example_type), 'type']\
-        .tolist()[i]
-    test_is_binary(t, s, False)
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_binary(t, s, False)
 
 # next, we extend the pandas series class to include the is_finite_numeric
 def is_finite_numeric(s: pd.Series) -> bool:
@@ -213,7 +220,7 @@ def is_finite_numeric(s: pd.Series) -> bool:
 pd.Series.is_finite_numeric = is_finite_numeric
 
 # function to test the is_finite_numeric method
-def test_is_finite_numeric(t:str, s: pd.Series, expected: bool):
+def _test_is_finite_numeric(t:str, s: pd.Series, expected: bool):
     """
     Tests the is_finite_numeric method on a series, and returns True if the
     result matches the expected value, and False otherwise.
@@ -225,25 +232,27 @@ def test_is_finite_numeric(t:str, s: pd.Series, expected: bool):
 Expected: {expected}
 Actual: {s.is_finite_numeric()}"""
 
-example_type = 'finite_numeric'
-# run the true test cases
-for i, s in enumerate(examples
-                     .loc[examples['type'].eq(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].eq(example_type), 'type']\
-        .tolist()[i]
-    test_is_finite_numeric(t, s, True)
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'finite_numeric'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_finite_numeric(t, s, True)
 
-for i, s in enumerate(examples
-                     .loc[examples['type'].ne(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].ne(example_type), 'type']\
-        .tolist()[i]
-    test_is_finite_numeric(t, s, False)
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_finite_numeric(t, s, False)
 
 # next, we extend the pandas series class to include the is_date method
 def is_date(s: pd.Series,
@@ -316,7 +325,7 @@ def is_date(s: pd.Series,
 pd.Series.is_date = is_date
 
 # # function to test the is_date method
-def test_is_date(t:str, s: pd.Series, expected: bool):
+def _test_is_date(t:str, s: pd.Series, expected: bool):
     """
     Tests the is_date method on a series, and returns True if the
     result matches the expected value, and False otherwise.
@@ -328,25 +337,27 @@ def test_is_date(t:str, s: pd.Series, expected: bool):
 Expected: {expected}
 Actual: {s.is_date()}"""
 
-example_type = 'date'
-# run the true test cases
-for i, s in enumerate(examples
-                     .loc[examples['type'].eq(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].eq(example_type), 'type']\
-        .tolist()[i]
-    test_is_date(t, s, True)
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'date'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_date(t, s, True)
 
-for i, s in enumerate(examples
-                     .loc[examples['type'].ne(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].ne(example_type), 'type']\
-        .tolist()[i]
-    test_is_date(t, s, False)
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_date(t, s, False)
 
 
 # next, we extend the pandas series class to include the is_categorical
@@ -355,11 +366,11 @@ def is_categorical(s: pd.Series,
                    categorical_cutoff: int = 100) -> bool:
     """
     Determines whether a series is categorical or not. If the series has
-    less than (s.shape * categorical_cutoff) unique values, then it is
+    less than `categorical_cutoff` unique values, then it is
     categorical. If the series is binary, then it is not categorical.
     If the series is a date, then it is not categorical. If the series
-    has more than (s.shape * categorical_cutoff) unique values, then it is
-    not categorical.
+    is finite numeric, then it is not categorical. Otherwise, it is
+    categorical.
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
@@ -368,9 +379,13 @@ def is_categorical(s: pd.Series,
 
     # error handling this for when it is used below
     def max_distance_between_floats_and_ints_is_one():
-       sorted_unique_values = pd.Series(unique_values).sort_values()
-       differences = sorted_unique_values.diff().abs()
-       return differences.max() == 1
+       # return false if `s` is a string or object dtype
+        if not pd.api.types.is_numeric_dtype(s):
+            return False
+        else:
+            sorted_unique_values = pd.Series(unique_values).sort_values()
+            differences = sorted_unique_values.diff().abs()
+            return differences.max() == 1
 
     # if the series is binary, then it is not categorical
     if s.is_binary():
@@ -420,8 +435,8 @@ def is_categorical(s: pd.Series,
 # extend the pandas series class to include the is_categorical method
 pd.Series.is_categorical = is_categorical
 
-# # function to test the is_categorical method
-def test_is_categorical(t:str, s: pd.Series, expected: bool):
+# function to test the is_categorical method
+def _test_is_categorical(t:str, s: pd.Series, expected: bool):
     """
     Tests the is_categorical method on a series, and returns True if the
     result matches the expected value, and False otherwise.
@@ -434,25 +449,27 @@ s.unique().size: {s.unique().size}
 Expected: {expected}
 Actual: {s.is_categorical()}"""
 
-example_type = 'categorical'
-# run the true test cases
-for i, s in enumerate(examples
-                     .loc[examples['type'].eq(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].eq(example_type), 'type']\
-        .tolist()[i]
-    test_is_categorical(t, s, True)
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'categorical'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_categorical(t, s, True)
 
-for i, s in enumerate(examples
-                     .loc[examples['type'].ne(example_type), 'examples']
-                     .tolist()):
-    s = pd.Series(s)
-    t = examples\
-        .loc[examples['type'].ne(example_type), 'type']\
-        .tolist()[i]
-    test_is_categorical(t, s, False)
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_categorical(t, s, False)
 
 # next, we extend the pandas series class to include the is_other_numeric method, which
 # serves as a catch-all for numeric series that are not binary, date, categorical, or
@@ -497,12 +514,41 @@ def is_other_numeric(s: pd.Series) -> bool:
 # extend the pandas series class to include the is_other_numeric method
 pd.Series.is_other_numeric = is_other_numeric
 
-# test the is_other_numeric method
-# try:
-#     test_methods("other_numeric")
-# except:
-#     print("is_other_numeric method is not correct")
-#     raise
+# function to test the is_other_numeric method
+def _test_is_other_numeric(t:str, s: pd.Series, expected: bool):
+    """
+    Tests the is_other_numeric method on a series, and returns True if the
+    result matches the expected value, and False otherwise.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+    assert s.is_other_numeric() == expected, \
+        f"""is_other_numeric method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {expected}
+Actual: {s.is_other_numeric()}"""
+
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'other_numeric'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_other_numeric(t, s, True)
+
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_other_numeric(t, s, False)
 
 # next, we extend the pandas series class to include the is_object method, which
 # serves as a catch-all for any series that is not binary, date, categorical, or
@@ -536,12 +582,41 @@ def is_object(s:pd.Series) -> bool:
 # extend the pandas series class to include the is_object method
 pd.Series.is_object = is_object
 
-# test the is_object method
-# try:
-#     test_methods("object")
-# except:
-#     print("is_object method is not correct")
-#     raise
+# function to test the is_object method
+def _test_is_object(t:str, s: pd.Series, expected: bool):
+    """
+    Tests the is_object method on a series, and returns True if the
+    result matches the expected value, and False otherwise.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+    assert s.is_object() == expected, \
+        f"""is_object method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {expected}
+Actual: {s.is_object()}"""
+
+# if we are in development mode, run the test cases
+if DEV:
+    example_type = 'object'
+    # run the true test cases
+    for i, s in enumerate(examples
+                        .loc[examples['type'].eq(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].eq(example_type), 'type']\
+            .tolist()[i]
+        _test_is_object(t, s, True)
+
+    for i, s in enumerate(examples
+                        .loc[examples['type'].ne(example_type), 'examples']
+                        .tolist()):
+        s = pd.Series(s)
+        t = examples\
+            .loc[examples['type'].ne(example_type), 'type']\
+            .tolist()[i]
+        _test_is_object(t, s, False)
 
 def sb_dtype(s:pd.Series) -> str:
     """
@@ -579,19 +654,22 @@ def sb_dtype(s:pd.Series) -> str:
 # extend the pandas series class to include the sb_dtype method
 pd.Series.sb_dtype = sb_dtype
 
-# test the sb_dtype method
-# try:
-#     assert pd.Series([0, 1]).sb_dtype() == 'binary'
-#     assert pd.Series(['2019-01-01']).sb_dtype() == 'date'
-#     assert pd.Series(['loan_status']).sb_dtype() == 'categorical'
-#     assert pd.Series([1, 2, 3]).sb_dtype() == 'finite_numeric'
-#     assert pd.Series([1, 2, 3.8]).sb_dtype() == 'other_numeric'
-# except AssertionError:
-#     print("sb_dtype method is not correct")
-#     raise    
+# if we are in development mode, run the test cases
+if DEV:
+    ex = examples['examples'].tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = examples['type'].tolist()[i]
+        TEST = s.sb_dtype()
+        assert TEST == t, \
+            f"""sb_dtype method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
 
 ##########################################################################################
-# In this next section, we will extend the pandas dataframe class to include methods for
+# In this next section, we will extend the pandas series class to include methods for
 # formatting each of the six Small Business data types. These methods will be used to
 # format the series of the dataframe.
 ##########################################################################################
@@ -639,20 +717,24 @@ def format_binary(s:pd.Series) -> pd.Series:
     # return the series
     return s
 
-# extend the pandas dataframe class to include the format_binary method
-pd.DataFrame.format_binary = format_binary
+# extend the pandas series class to include the format_binary method
+pd.Series.format_binary = format_binary
 
-# test the format_binary method
-# try:
-#     assert pd.Series([0, 1]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-#     assert pd.Series([True, False]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-#     assert pd.Series(["yes", "no"]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-#     assert pd.Series(["y", "n"]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-#     assert pd.Series(["t", "f"]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-#     assert pd.Series(["true", "false"]).format_binary().drop_duplicates().sort_values().tolist() == [0, 1]
-# except AssertionError:
-#     print("format_binary method is not correct")
-#     raise
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('binary')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('binary')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        TEST = s.format_binary()
+        assert TEST.eq(t).all(), \
+            f"""format_binary method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
 
 def format_date(s:pd.Series) -> pd.Series:
     """
@@ -671,15 +753,24 @@ def format_date(s:pd.Series) -> pd.Series:
     # return the series
     return s
 
-# extend the pandas dataframe class to include the format_date method
-pd.DataFrame.format_date = format_date
+# extend the pandas series class to include the format_date method
+pd.Series.format_date = format_date
 
-# test the format_date method
-# try:
-#     assert pd.Series(["2019-01-01"]).format_date().dtype == "datetime64[ns]"
-# except AssertionError:
-#     print("format_date method is not correct")
-#     raise
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('date')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('date')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        TEST = s.format_date()
+        assert TEST.eq(t).all(), \
+            f"""format_date method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
 
 def format_categorical(s:pd.Series) -> pd.Series:
     """
@@ -691,9 +782,33 @@ def format_categorical(s:pd.Series) -> pd.Series:
     # if the series is not categorical, then end the function
     if not s.is_categorical():
         return
+    
+    # if it isn't a string, then convert it to a string
+    if s.dtype != "string":
+        s = s.astype("string")
 
     # otherwise, format the series as a category
     s = s.astype("category")
 
     # return the series
-    return s
+    return pd.Series(s)
+
+# extend the pandas series class to include the format_categorical method
+pd.Series.format_categorical = format_categorical
+
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('categorical')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('categorical')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        if t!='abc':
+            TEST = s.format_categorical()
+            assert TEST.eq(t).all(), \
+                f"""format_categorical method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
