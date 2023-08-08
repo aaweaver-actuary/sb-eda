@@ -35,7 +35,7 @@ def _validate_input(target:pd.Series = None, features:pd.Series = None) -> None:
     target : pd.Series, optional
         Binary target column, by default None.
     features : pd.Series, optional
-        Binary feature column, by default None.
+        Feature column, by default None.
 
     Raises
     ------
@@ -75,7 +75,7 @@ def binary_true_positive(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
 
     Returns
     -------
@@ -98,7 +98,7 @@ def binary_true_negative(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
 
     Returns
     -------
@@ -121,7 +121,7 @@ def binary_false_positive(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
 
     Returns
     -------
@@ -144,7 +144,7 @@ def binary_false_negative(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
 
     Returns
     -------
@@ -170,7 +170,7 @@ def binary_recall(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the recall will be rounded to this number
         of decimals, by default None
@@ -210,7 +210,7 @@ def binary_precision(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the precision will be rounded to this number
         of decimals, by default None
@@ -249,7 +249,7 @@ def binary_f1(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the F1 score will be rounded to this number
         of decimals, by default None
@@ -284,7 +284,7 @@ def binary_accuracy(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the accuracy will be rounded to this number
         of decimals, by default None
@@ -326,7 +326,7 @@ def binary_specificity(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the specificity will be rounded to this number
         of decimals, by default None
@@ -364,7 +364,7 @@ def binary_roc_auc(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the ROC AUC will be rounded to this number
         of decimals, by default None
@@ -397,7 +397,7 @@ def binary_roc_curve(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the ROC curve will be rounded to this number
         of decimals, by default None
@@ -461,7 +461,7 @@ def binary_mcc(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the ROC curve will be rounded to this number
         of decimals, by default None
@@ -513,7 +513,7 @@ def binary_ave_precision(target:pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the average precision will be rounded to this number
         of decimals, by default None
@@ -554,7 +554,7 @@ def binary_fowlkes_mallows_index(target: pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the Fowlkes-Mallows index will be rounded to this number
         of decimals, by default None
@@ -605,7 +605,7 @@ def binary_balanced_accuracy(target: pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     round_to : int, optional
         If not None, the balanced accuracy will be rounded to this number
         of decimals, by default None
@@ -662,7 +662,7 @@ def binary_fbeta_score(target: pd.Series,
     target : pd.Series
         Binary target column.
     features : pd.Series
-        Binary feature column.
+        Feature column.
     beta : float, optional
         The beta parameter determines the weight of the precision in the
         combined score. beta < 1 gives more weight to recall, beta > 1 gives
@@ -706,6 +706,43 @@ def binary_fbeta_score(target: pd.Series,
     return fbeta
 
 #  jaccard_score,
+def binary_jaccard_score(target: pd.Series,
+                         features: pd.Series,
+                         round_to: int = None
+                         ) -> float:
+    """
+    Calculates the Jaccard score in a binary target and binary features.
+
+    The Jaccard score is the intersection over union of the predicted and
+    actual values, with 1 being the best score and 0 being the worst score. It
+    is defined as:
+
+        TP / (TP + FP + FN)
+
+    The Jaccard score is also known as the Jaccard similarity coefficient and
+    the Jaccard index. It is used to evaluate similarity between two sets.
+    
+    It is particularly useful when you want to understand how well the positive
+    class is predicted.
+
+    Parameters
+    ----------
+    target : pd.Series
+        Binary target column.
+    features : pd.Series
+        Feature column.
+    round_to : int, optional
+        If not None, the Jaccard score will be rounded to this number
+        of decimals, by default None
+
+    Returns
+    -------
+    float
+        Jaccard score.
+    """
+
+
+
 #  hinge_loss,
 #  log_loss,
 #  precision_recall_curve, # precision-recall pairs for different probability thresholds
