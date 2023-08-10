@@ -812,3 +812,153 @@ s: {s}
 s.unique().size: {s.unique().size}
 Expected: {t}
 Actual: {TEST}"""
+
+def format_finite_numeric(s:pd.Series) -> pd.Series:
+    """
+    Formats a finite numeric series. If the series is finite numeric, then it
+    is formatted as a float. Otherwise, it is ignored.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # if the series is not finite numeric, then end the function
+    if not s.is_finite_numeric():
+        return
+    
+    # otherwise, format the series as a float
+    s = s.astype("float")
+
+    # return the series
+    return s
+
+# extend the pandas series class to include the format_finite_numeric method
+pd.Series.format_finite_numeric = format_finite_numeric
+
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('finite_numeric')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('finite_numeric')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        TEST = s.format_finite_numeric()
+        assert TEST.eq(t).all(), \
+            f"""format_finite_numeric method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
+
+def format_other_numeric(s:pd.Series) -> pd.Series:
+    """
+    Formats an other numeric series. If the series is other numeric, then it
+    is formatted as a float. Otherwise, it is ignored.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # if the series is not other numeric, then end the function
+    if not s.is_other_numeric():
+        return
+    
+    # otherwise, format the series as a float
+    s = s.astype("float")
+
+    # return the series
+    return s
+
+# extend the pandas series class to include the format_other_numeric method
+pd.Series.format_other_numeric = format_other_numeric
+
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('other_numeric')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('other_numeric')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        TEST = s.format_other_numeric()
+        assert TEST.eq(t).all(), \
+            f"""format_other_numeric method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
+
+def format_object(s:pd.Series) -> pd.Series:
+    """
+    Formats an object series. If the series is object, then it is formatted as
+    a string. Otherwise, it is ignored.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # if the series is not object, then end the function
+    if not s.is_object():
+        return
+    
+    # otherwise, format the series as a string
+    s = s.astype("string")
+
+    # return the series
+    return s
+
+# extend the pandas series class to include the format_object method
+pd.Series.format_object = format_object
+
+# if we are in development mode, run the test cases
+if DEV:
+    df = examples.loc[examples['type'].eq('object')]
+    ex = df['examples'].tolist()
+    ex_re = examples_re.loc[examples_re['type'].eq('object')].examples.tolist()
+    for i, s in enumerate(ex):
+        s = pd.Series(s)
+        t = ex_re[i]
+        TEST = s.format_object()
+        assert TEST.eq(t).all(), \
+            f"""format_object method is not correct for the {t} series:
+s: {s}
+s.unique().size: {s.unique().size}
+Expected: {t}
+Actual: {TEST}"""
+
+def format_series(s:pd.Series) -> pd.Series:
+    """
+    Formats a series. If the series is categorical, then it is formatted as a
+    category. If the series is finite numeric, then it is formatted as a float.
+    If the series is other numeric, then it is formatted as a float. If the
+    series is object, then it is formatted as a string. Otherwise, it is
+    ignored.
+    """
+    assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # get the column type
+    col_type = s.sb_dtype()
+
+    # if the column type is categorical, then format it as a category
+    if col_type == "categorical":
+        return s.format_categorical()
+    
+    # if the column type is finite numeric, then format it as a float
+    elif col_type == "finite_numeric":
+        return s.format_finite_numeric()
+    
+    # if the column type is other numeric, then format it as a float
+    elif col_type == "other_numeric":
+        return s.format_other_numeric()
+    
+    # if the column type is object, then format it as a string
+    elif col_type == "object":
+        return s.format_object()
+    
+    # if the column type is binary, then format it as a binary
+    elif col_type == "binary":
+        return s.format_binary()
+    
+    # if the column type is date, then format it as a date
+    elif col_type == "date":
+        return s.format_date()
+    
+    # otherwise, end the function
+    else:
+        return
+    
