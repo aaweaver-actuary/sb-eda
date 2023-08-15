@@ -9,6 +9,7 @@ class ColDType:
         self.s = s
         self.verbose = verbose
         self.categorical_cutoff = categorical_cutoff
+        self.s_fmt = None # formatted series
         
         self.is_binary = None
         self.is_categorical = None
@@ -167,6 +168,10 @@ indicates it is NOT a date column.")
         if self.is_type_known:
             exit()
 
+        # stop early if self.is_binary is not None
+        if self.is_binary is not None:
+            exit()
+
         if self.verbose:
             print(f"Checking if {self.s.name} is binary...")
 
@@ -254,6 +259,10 @@ so it is not binary.")
         values are all integers, and if so, then it is finite numeric.
         """
         if self.is_type_known:
+            exit()
+
+        # stop early if self.is_finite_numeric is not None
+        if self.is_finite_numeric is not None:
             exit()
 
         if self.verbose:
@@ -357,6 +366,10 @@ so it is not binary.")
         if self.is_type_known:
             exit()
 
+        # stop early if self.is_date is not None
+        if self.is_date is not None:
+            exit()
+
         if self.verbose:
             print(f"Checking if {self.s.name} is date...")
 
@@ -439,6 +452,10 @@ so it is not binary.")
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
+            exit()
+
+        # stop early if self.is_categorical is not None
+        if self.is_categorical is not None:
             exit()
 
         if self.verbose:
@@ -525,6 +542,10 @@ so it is not binary.")
         if self.is_type_known:
             exit()
 
+        # stop early if self.is_other_numeric is not None
+        if self.is_other_numeric is not None:
+            exit()
+
         if self.verbose:
             print(f"Checking if {self.s.name} is other numeric...")
 
@@ -573,6 +594,14 @@ so it is not binary.")
         then it is an object. An object is a catch-all for any series that is
         not binary, date, categorical, or numeric.
         """
+        # no reason to keep going if the type is already known
+        if self.is_type_known:
+            exit()
+
+        # stop early if self.is_object is not None
+        if self.is_object is not None:
+            exit()
+
         if self.verbose:
             print(f"Checking if {self.s.name} is object...")
 
@@ -598,6 +627,229 @@ so it is not binary.")
         else:
             self.set_type('object')
 
+    def sb_dtype(self):
+        """
+        Process the series data type into Small Business categories. This function
+        determines the series Small Business data type for a given series. The 
+        The Small Business data type is one of:
+            - binary
+            - date
+            - categorical
+            - finite numeric
+            - other numeric
+            - object
+
+        If the series data type cannot be determined, then a ValueError is
+        raised.
+        """
+        # no reason to keep going if the type is already known
+        if self.is_type_known:
+            exit()
+
+        # for each data type, check if the series is that data type
+        old_s = self.s.copy()
+        self.s = self.s.fillna(-9999)
+        self._is_binary()
+        if self.is_binary:
+            exit()
+
+        self.s = old_s.copy().fillna(pd.Timestamp("12/31/2999"))
+        self._is_date()
+        if self.is_date:
+            exit()
+
+        self.s = old_s.copy().fillna('missing')
+        self._is_categorical()
+        if self.is_categorical:
+            exit()
+
+        self.s = old_s.copy().fillna(-9999)
+        self._is_finite_numeric()
+        if self.is_finite_numeric:
+            exit()
+
+        self.s = old_s.copy().fillna(-9999)
+        self._is_other_numeric()
+        if self.is_other_numeric:
+            exit()
+
+        self.s = old_s.copy().fillna('missing')
+        self._is_object()
+        if self.is_object:
+            exit()
+
+        else:
+            errormsg = "series cannot be coerced to one of the six data types"
+            raise ValueError(errormsg)
+
+    def format_binary(self):
+        """
+        Formats a binary series. If the series is binary, then it is formatted
+        as an 8-bit integer. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not binary, then end the function
+        if not self.is_binary:
+            exit()
+
+        # otherwise, format the series as an 8-bit integer:
+
+        # fill na values
+        self.s = self.s.fillna(-9999)
+
+        # map possible binary values to 0 and 1
+        binary_map = {
+            0: 0,
+            1: 1,
+            True: 1,
+            False: 0,
+            "yes": 1,
+            "no": 0,
+            "y": 1,
+            "n": 0,
+            "t": 1,
+            "f": 0,
+            "true": 1,
+            "false": 0,
+        }
+
+        # if the values in the series are strings, then convert them to lower case
+        # before running them through the binary map
+        if self.s.dtype == "object" or self.s.dtype == "string":
+            self.s = self.s.str.lower()
+
+        # map the values in the series to 0 and 1
+        self.s_fmt = self.s.map(binary_map)
+
+        # convert the series to an 8-bit integer
+        self.s_fmt = self.s_fmt.astype("int8")
+
+    def format_date(self):
+        """
+        Formats a date series. If the series has a date type, then it is formatted
+        as a datetime. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not date, then end the function
+        if not self.is_date:
+            exit()
+
+        # otherwise, format the series as a datetime\
+        self.s = self.s.fillna(pd.Timestamp('12/31/2999'))
+        self.s_fmt = pd.to_datetime(self.s)
+
+    def format_categorical(self):
+        """
+        Formats a categorical series. If the series is categorical, then it is
+        formatted as a category. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not categorical, then end the function
+        if not self.is_categorical:
+            exit()
+        
+        # if it isn't a string, then convert it to a string
+        self.s = self.s.fillna('missing')
+        if self.s.dtype != "string":
+            self.s = self.s.astype("string")
+
+        # otherwise, format the series as a category
+        self.s_fmt = self.s.astype("category")
+
+    def format_finite_numeric(self):
+        """
+        Formats a finite numeric series. If the series is finite numeric, then it
+        is formatted as a float. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not finite numeric, then end the function
+        if not self.is_finite_numeric:
+            exit()
+        
+        # otherwise, format the series as a float
+        self.s = self.s.fillna(-9999)
+        self.s_fmt = self.s.astype("float").astype(int)
+
+    def format_other_numeric(self):
+        """
+        Formats an other numeric series. If the series is other numeric, then it
+        is formatted as a float. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not other numeric, then end the function
+        if not self.is_other_numeric:
+            exit()
+        
+        # otherwise, format the series as a float
+        self.s = self.s.fillna(-9999)
+        self.s_fmt = self.s.astype("float")
+
+    def format_object(self):
+        """
+        Formats an object series. If the series is object, then it is formatted as
+        a string. Otherwise, it is ignored.
+        """
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the series is not finite numeric, then end the function
+        if not self.is_object:
+            exit()
+        
+        # otherwise, format the series as a string
+        self.s = self.s.fillna('missing')
+        self.s_fmt = self.s.astype("string")
+
+    def format_series(self):
+        """
+        Formats a series. If the series is categorical, then it is formatted as a
+        category. If the series is finite numeric, then it is formatted as a float.
+        If the series is other numeric, then it is formatted as a float. If the
+        series is object, then it is formatted as a string. Otherwise, it is
+        ignored.
+        """
+        # get the column type
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # if the column type is date, then format it as a date
+        if self.is_date:
+            self.format_date()
+
+        # if the column type is categorical, then format it as a category
+        elif self.is_categorical:
+            self.format_categorical()
+        
+        # if the column type is finite numeric, then format it as a float
+        elif self.is_finite_numeric:
+            self.format_finite_numeric()
+
+        # if the column type is binary, then format it as a binary
+        elif self.is_binary:
+            self.format_binary()
+        
+        # if the column type is other numeric, then format it as a float
+        elif self.is_other_numeric:
+            self.format_other_numeric()
+        
+        # if the column type is object, then format it as a string
+        elif self.is_object:
+            self.format_object()
+        
+        # otherwise, end the function
+        else:
+            self.s_fmt = self.s.copy().fillna('missing')
+
 ###### UPDATE PD.SERIES WITH NEW METHOD ######
 
 # # extend the pandas series class to include the is_binary method
@@ -614,3 +866,28 @@ so it is not binary.")
 
 # # extend the pandas series class to include the is_categorical method
 # pd.Series.is_categorical = is_categorical
+
+# # extend the pandas series class to include the sb_dtype method
+# pd.Series.sb_dtype = sb_dtype
+
+# # extend the pandas series class to include the format_series method
+# pd.Series.format_series = format_series
+
+# # extend the pandas series class to include the format_object method
+# pd.Series.format_object = format_object
+
+# # extend the pandas series class to include the format_finite_numeric method
+# pd.Series.format_finite_numeric = format_finite_numeric
+
+# # extend the pandas series class to include the format_other_numeric method
+# pd.Series.format_other_numeric = format_other_numeric
+
+# # extend the pandas series class to include the format_categorical method
+# pd.Series.format_categorical = format_categorical
+
+# # extend the pandas series class to include the format_date method
+# pd.Series.format_date = format_date
+
+
+# # extend the pandas series class to include the format_binary method
+# pd.Series.format_binary = format_binary
