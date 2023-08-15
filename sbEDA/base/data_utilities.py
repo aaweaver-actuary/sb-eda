@@ -61,30 +61,30 @@ def _handle_nan(s: pd.Series,
     """
     warnings.filterwarnings('ignore')
     
-    # Check if all elements can be converted to numeric
-    if s.apply(lambda x: str(x).replace('.', '', 1).isnumeric() or pd.isna(x)).all():
-        return s.astype(float).fillna(numeric_nan)
+    # Check if numeric (replace '.', '', 1 is to allow float)
+    if pd.to_numeric(s, errors='coerce').notna().all():
+        return pd.to_numeric(s).fillna(-9999)
     
     # Check if all elements can be parsed as dates
-    try:
-        parsed_dates = pd.to_datetime(s, errors='coerce')
-        if parsed_dates.isnull().sum() / len(s) < date_parsing_threshold:  
-            return parsed_dates.fillna(date_nan)
-    except:
-        pass
+    parsed_dates = pd.to_datetime(s, errors='coerce')
+    if parsed_dates.notna().sum() / len(s) > 0.95:  # more than 95% parsed successfully
+        return parsed_dates.fillna(pd.Timestamp('2999-12-31'))
     
-    # Original conditions
-    if s.dtype == 'object' and s.map(type).eq(str).all():
-        return s.fillna(char_nan)
-    elif s.dtype in ['int64', 'float64']:
-        return s.fillna(numeric_nan)
-    elif np.issubdtype(s.dtype, np.datetime64):
-        return s.fillna(date_nan)
-    else:
-        if s.apply(lambda x: isinstance(x, str)).mean() > string_threshold:
+    # Handle object types
+    if s.dtype == 'object':
+        str_mask = s.map(type).eq(str)
+        if str_mask.all():
+            return s.fillna("NaN")
+        elif str_mask.mean() > 0.5:
             return s.astype(str).replace('nan', "NaN").astype('category')
-        else:
-            return s.astype('category')
+    
+    # For numeric and date types
+    if s.dtype in ['int64', 'float64']:
+        return s.fillna(-9999)
+    elif np.issubdtype(s.dtype, np.datetime64):
+        return s.fillna(pd.Timestamp('2999-12-31'))
+    
+    return s.astype('category')
 
     
 
