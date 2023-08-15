@@ -20,22 +20,26 @@ class ColDType:
         self.is_object = None
 
         self.is_type_known = False
-        self.sb_dype = None
+        self.dtype = None
         self.is_empty = None
-        self.distinct = None
 
     def __post_init__(self):
+        """
+        This function is called after the class is initialized. It sets the
+        following attributes:
+            - self.is_empty
+        """
         # set self.is_empty
-        if len(self.s) == 0:
+        if self.s.shape[0] == 0:
             self.is_empty = True
         else:
             self.is_empty = False
 
-        # set self.distinct
-        self.distinct = self.s.drop_duplicates().reset_index(drop=True)
-
         # handle NaN values
         self._handle_nan()
+
+    def __repr__(self):
+        return f"ColDType({self.s.name})"
 
     def set_type(self,
                  dtype: str = None):
@@ -53,42 +57,49 @@ class ColDType:
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 True, False, False, False, False, False
             self.is_type_known = True
-            self.sb_dtype = 'binary'
+            self.dtype = 'binary'
         elif dtype == 'categorical':
             self.is_binary, self.is_categorical, self.is_date, \
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 False, True, False, False, False, False
             self.is_type_known = True
-            self.sb_dtype = 'categorical'
+            self.dtype = 'categorical'
         elif dtype == 'date':
             self.is_binary, self.is_categorical, self.is_date, \
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 False, False, True, False, False, False
             self.is_type_known = True
-            self.sb_dtype = 'date'
+            self.dtype = 'date'
         elif dtype == 'finite_numeric':
             self.is_binary, self.is_categorical, self.is_date, \
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 False, False, False, True, False, False
             self.is_type_known = True
-            self.sb_dtype = 'finite_numeric'
+            self.dtype = 'finite_numeric'
         elif dtype == 'other_numeric':
             self.is_binary, self.is_categorical, self.is_date, \
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 False, False, False, False, True, False
             self.is_type_known = True
-            self.sb_dtype = 'other_numeric'
+            self.dtype = 'other_numeric'
         elif dtype == 'object':
             self.is_binary, self.is_categorical, self.is_date, \
             self.is_finite_numeric, self.is_other_numeric, self.is_object = \
                 False, False, False, False, False, True
             self.is_type_known = True
-            self.sb_dtype = 'object'
+            self.dtype = 'object'
         else:
             raise ValueError(f"Unknown dtype {dtype}. Please choose from \
 'binary', 'categorical', 'date', 'finite_numeric', 'other_numeric', or \
 'object'.")        
         
+    def get_unique_values(self):
+        """
+        This function returns the unique values in the series. It is a wrapper
+        for the pandas series drop_duplicates().reset_index(drop=True) method
+        chain.
+        """
+        return self.s.drop_duplicates().reset_index(drop=True)
 
     def _handle_nan(self,
                     numeric_nan: float = -9999,
@@ -172,11 +183,11 @@ indicates it is NOT a date column.")
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_binary is not None
         if self.is_binary is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is binary...")
@@ -186,7 +197,7 @@ indicates it is NOT a date column.")
             self.is_binary = False
             
         # get the unique values
-        unique_values = self.distinct
+        unique_values = self.get_unique_values()
 
         # test if the column name indicates that it is a date column
         if self._is_date_col_name():
@@ -262,11 +273,11 @@ so it is not binary.")
         values are all integers, and if so, then it is finite numeric.
         """
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_finite_numeric is not None
         if self.is_finite_numeric is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is finite numeric...")
@@ -367,11 +378,11 @@ so it is not binary.")
         then it is a date. Otherwise, it is not a date.
         """
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_date is not None
         if self.is_date is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is date...")
@@ -381,7 +392,7 @@ so it is not binary.")
         if self._is_date_col_name():
             self.set_type('date')
         
-        unique_values = self.distinct
+        unique_values = self.get_unique_values()
 
         # make sure the series is not binary
         if self.is_binary:
@@ -455,11 +466,11 @@ so it is not binary.")
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_categorical is not None
         if self.is_categorical is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is categorical...")
@@ -469,7 +480,7 @@ so it is not binary.")
             self.is_categorical = False
         
         # get the unique values
-        unique_values = self.distinct
+        unique_values = self.get_unique_values()
 
         # error handling this for when it is used below
         def max_distance_between_floats_and_ints_is_one():
@@ -543,11 +554,11 @@ so it is not binary.")
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_other_numeric is not None
         if self.is_other_numeric is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is other numeric...")
@@ -599,11 +610,11 @@ so it is not binary.")
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
-            exit()
+            return None
 
         # stop early if self.is_object is not None
         if self.is_object is not None:
-            exit()
+            return None
 
         if self.verbose:
             print(f"Checking if {self.s.name} is object...")
@@ -630,7 +641,7 @@ so it is not binary.")
         else:
             self.set_type('object')
 
-    def sb_dtype(self):
+    def sb_dtype(self, return_:bool = False):
         """
         Process the series data type into Small Business categories. This function
         determines the series Small Business data type for a given series. The 
@@ -645,41 +656,53 @@ so it is not binary.")
         If the series data type cannot be determined, then a ValueError is
         raised.
         """
+        def bool_return(value=None):
+            """
+            This function returns the value if return_ is True, otherwise it
+            returns None. If no value is passed, then it returns the dtype.
+            """
+            if return_:
+                print(1)
+                return value if value is not None else self.dtype
+            else:
+                print(2)
+                return None
         # no reason to keep going if the type is already known
         if self.is_type_known:
-            exit()
+            return bool_return()
 
         # for each data type, check if the series is that data type
         old_s = self.s.copy()
         self.s = self.s.fillna(-9999)
         self._is_binary()
         if self.is_binary:
-            exit()
+            print(3)
+            return bool_return('binary')
 
         self.s = old_s.copy().fillna(pd.Timestamp("12/31/2999"))
         self._is_date()
         if self.is_date:
-            exit()
+            return bool_return('date')
 
         self.s = old_s.copy().fillna('missing')
         self._is_categorical()
         if self.is_categorical:
-            exit()
+            return bool_return('categorical')
 
         self.s = old_s.copy().fillna(-9999)
         self._is_finite_numeric()
         if self.is_finite_numeric:
-            exit()
+            return bool_return('finite_numeric')
 
         self.s = old_s.copy().fillna(-9999)
         self._is_other_numeric()
         if self.is_other_numeric:
-            exit()
+            return bool_return('other_numeric')
 
         self.s = old_s.copy().fillna('missing')
         self._is_object()
         if self.is_object:
-            exit()
+            return bool_return('object')
 
         else:
             errormsg = "series cannot be coerced to one of the six data types"
@@ -695,7 +718,7 @@ so it is not binary.")
 
         # if the series is not binary, then end the function
         if not self.is_binary:
-            exit()
+            return None
 
         # otherwise, format the series as an 8-bit integer:
 
@@ -739,7 +762,7 @@ so it is not binary.")
 
         # if the series is not date, then end the function
         if not self.is_date:
-            exit()
+            return None
 
         # otherwise, format the series as a datetime\
         self.s = self.s.fillna(pd.Timestamp('12/31/2999'))
@@ -755,7 +778,7 @@ so it is not binary.")
 
         # if the series is not categorical, then end the function
         if not self.is_categorical:
-            exit()
+            return None
         
         # if it isn't a string, then convert it to a string
         self.s = self.s.fillna('missing')
@@ -775,7 +798,7 @@ so it is not binary.")
 
         # if the series is not finite numeric, then end the function
         if not self.is_finite_numeric:
-            exit()
+            return None
         
         # otherwise, format the series as a float
         self.s = self.s.fillna(-9999)
@@ -791,7 +814,7 @@ so it is not binary.")
 
         # if the series is not other numeric, then end the function
         if not self.is_other_numeric:
-            exit()
+            return None
         
         # otherwise, format the series as a float
         self.s = self.s.fillna(-9999)
@@ -807,7 +830,7 @@ so it is not binary.")
 
         # if the series is not finite numeric, then end the function
         if not self.is_object:
-            exit()
+            return None
         
         # otherwise, format the series as a string
         self.s = self.s.fillna('missing')
