@@ -52,6 +52,31 @@ def _handle_nan(s: pd.Series) -> pd.Series:
     with the -9999. If the series is a date, then the NaN values are replaced
     with 12/31/2999.
     """
+    # Check if all elements can be converted to numeric
+    if s.apply(lambda x: str(x).replace('.', '', 1).isnumeric() or pd.isna(x)).all():
+        return s.astype(float).fillna(-9999)
+    
+    # Check if all elements can be parsed as dates
+    try:
+        parsed_dates = pd.to_datetime(s, errors='coerce')
+        if parsed_dates.isnull().sum() / len(s) < 0.05:  # less than 5% parsing errors
+            return parsed_dates.fillna(pd.Timestamp('2999-12-31'))
+    except:
+        pass
+    
+    # Original conditions
+    if s.dtype == 'object' and s.map(type).eq(str).all():
+        return s.fillna("NaN")
+    elif s.dtype in ['int64', 'float64']:
+        return s.fillna(-9999)
+    elif np.issubdtype(s.dtype, np.datetime64):
+        return s.fillna(pd.Timestamp('2999-12-31'))
+    else:
+        if s.apply(lambda x: isinstance(x, str)).mean() > 0.5:
+            return s.astype(str).replace('nan', "NaN").astype('category')
+        else:
+            return s.astype('category')
+
     
 
 # first takes a series and returns a boolean representing whether the
