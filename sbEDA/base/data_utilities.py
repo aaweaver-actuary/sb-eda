@@ -152,6 +152,9 @@ def is_finite_numeric(s: pd.Series) -> bool:
       - date
       - categorical
     or has missing values, then it is not finite numeric.
+
+    If the series has values that all start with 0, should check if the
+    values are all integers, and if so, then it is finite numeric.
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
@@ -161,15 +164,23 @@ def is_finite_numeric(s: pd.Series) -> bool:
     # error handling this for when it is used below
     def all_floats_are_ints():
         try:
-          return (pd.Series(unique_values) -
-              pd.Series(unique_values).astype(int)).abs().sum() == 0
+            s = pd.Series(unique_values)
+            # cast to float if not already float
+            if s.dtype != float:
+                s = s.astype(float)
+            return (s - pd.Series(unique_values).astype(int)).abs().sum() == 0
         except TypeError:
             return False
-        
+
     def max_distance_between_floats_and_ints_is_one():
-       sorted_unique_values = pd.Series(unique_values).sort_values()
-       differences = sorted_unique_values.diff().abs()
-       return differences.max() == 1
+        # try to cast to float
+        try:
+            s = pd.Series(unique_values).astype(float)
+        except TypeError:
+            return False
+        sorted_unique_values = s.sort_values()
+        differences = sorted_unique_values.diff().abs()
+        return differences.max() == 1
 
     # if any of these are strings that cannot be converted to numbers,
     # then the series is not finite numeric
