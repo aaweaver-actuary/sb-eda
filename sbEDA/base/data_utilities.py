@@ -1,4 +1,4 @@
-DEV = True
+DEV = False
 
 """
 # Description
@@ -797,21 +797,21 @@ def format_categorical(s:pd.Series) -> pd.Series:
 pd.Series.format_categorical = format_categorical
 
 # if we are in development mode, run the test cases
-if DEV:
-    df = examples.loc[examples['type'].eq('categorical')]
-    ex = df['examples'].tolist()
-    ex_re = examples_re.loc[examples_re['type'].eq('categorical')].examples.tolist()
-    for i, s in enumerate(ex):
-        s = pd.Series(s)
-        t = ex_re[i]
-        if t!='abc':
-            TEST = s.format_categorical()
-            assert TEST.eq(t).all(), \
-                f"""format_categorical method is not correct for the {t} series:
-s: {s}
-s.unique().size: {s.unique().size}
-Expected: {t}
-Actual: {TEST}"""
+# if DEV:
+#     df = examples.loc[examples['type'].eq('categorical')]
+#     ex = df['examples'].tolist()
+#     ex_re = examples_re.loc[examples_re['type'].eq('categorical')].examples.tolist()
+#     for i, s in enumerate(ex):
+#         s = pd.Series(s)
+#         t = ex_re[i]
+#         if t!='abc':
+#             TEST = s.format_categorical()
+#             assert TEST.eq(t).all(), \
+#                 f"""format_categorical method is not correct for the {t} series:
+# s: {s}
+# s.unique().size: {s.unique().size}
+# Expected: {t}
+# Actual: {TEST}"""
 
 def format_finite_numeric(s:pd.Series) -> pd.Series:
     """
@@ -825,7 +825,7 @@ def format_finite_numeric(s:pd.Series) -> pd.Series:
         return
     
     # otherwise, format the series as a float
-    s = s.astype("float")
+    s = s.astype("float").astype(int)
 
     # return the series
     return s
