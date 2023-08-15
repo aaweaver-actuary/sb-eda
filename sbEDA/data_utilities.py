@@ -126,7 +126,7 @@ def is_binary(s: pd.Series,
     then it is binary. Otherwise, it is not binary.
     """
     if verbose:
-        print('Running is_binary function.')
+        print(f"Checking if {s.name} is binary...")
 
     # handle NaN values
     s = _handle_nan(s)
@@ -255,6 +255,8 @@ def is_finite_numeric(s: pd.Series,
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # handle NaN values
+    if verbose:
+        print(f"Handling NaN values...")
     s = _handle_nan(s)
     
     # get the unique values
@@ -370,11 +372,15 @@ if DEV:
 
 # next, we extend the pandas series class to include the is_date method
 def is_date(s: pd.Series,
-            categorical_cutoff: float = 0.15) -> bool:
+            categorical_cutoff: float = 0.15,
+            verbose:bool = False) -> bool:
     """
     Determines whether a series is a date or not. If the series is a date,
     then it is a date. Otherwise, it is not a date.
     """
+    if verbose:
+        print(f"Checking if {s.name} is date...")
+
     # handle NaN values
     # test if the column name indicates that it is a date column
     if _is_date_col_name(s):
@@ -490,7 +496,8 @@ if DEV:
 # next, we extend the pandas series class to include the is_categorical
 # method
 def is_categorical(s: pd.Series,
-                   categorical_cutoff: float = 0.15) -> bool:
+                   categorical_cutoff: float = 0.15,
+                   verbose:bool = False) -> bool:
     """
     Determines whether a series is categorical or not. If the series has
     less than `categorical_cutoff` unique values, then it is
@@ -499,6 +506,9 @@ def is_categorical(s: pd.Series,
     is finite numeric, then it is not categorical. Otherwise, it is
     categorical.
     """
+    if verbose:
+        print(f"Checking if {s.name} is categorical...")
+
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # test if the column name indicates that it is a date column
@@ -608,7 +618,8 @@ if DEV:
 # next, we extend the pandas series class to include the is_other_numeric method, which
 # serves as a catch-all for numeric series that are not binary, date, categorical, or
 # finite numeric
-def is_other_numeric(s: pd.Series) -> bool:
+def is_other_numeric(s: pd.Series,
+                     verbose: bool = False) -> bool:
     """
     Determines whether a series is other numeric or not. If the series is
     not:
@@ -619,9 +630,14 @@ def is_other_numeric(s: pd.Series) -> bool:
     but the series is numeric, then it is other numeric. Otherwise, it is
     not other numeric.
     """
+    if verbose:
+        print(f"Checking if {s.name} is other numeric...")
+
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # test if the column name indicates that it is a date column
+    if verbose:
+        print(f"Checking if {s.name} is a date column...")
     if _is_date_col_name(s):
         return False
 
@@ -629,16 +645,13 @@ def is_other_numeric(s: pd.Series) -> bool:
     s = _handle_nan(s)
     
     # if the series is binary, then it is not other numeric
+    if verbose:
+        print(f"Checking if {s.name} is binary...")
     if s.is_binary():
         return False
 
-    # check that the name of the column doesn't have some string that
-    # indicates it is a date column
-    elif any([i in s.name.lower() for i in ['date', 'time', 'year', 'month', 'day', \
-                                            'yr','mo', 'dy', 'dt', 'dat']]):
-        return False
-
     # if the series is a date, then it is not other numeric
+    
     elif s.is_date():
         return False
 
@@ -700,7 +713,8 @@ if DEV:
 # next, we extend the pandas series class to include the is_object method, which
 # serves as a catch-all for any series that is not binary, date, categorical, or
 # numeric
-def is_object(s:pd.Series) -> bool:
+def is_object(s:pd.Series, 
+              verbose:bool = False) -> bool:
     """
     Determines whether a series is an object or not. If the series is not:
         - binary
@@ -710,6 +724,9 @@ def is_object(s:pd.Series) -> bool:
     then it is an object. An object is a catch-all for any series that is
     not binary, date, categorical, or numeric.
     """
+    if verbose:
+        print(f"Checking if {s.name} is object...")
+
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # test if the column name indicates that it is a date column
@@ -720,6 +737,8 @@ def is_object(s:pd.Series) -> bool:
     s = _handle_nan(s)
     
     # if the series is binary, then it is not an object
+    if verbose:
+        print(f"Checking if {s.name} is any other dtype...")
     if s.is_binary():
         return False
     elif s.is_date():
@@ -772,7 +791,8 @@ if DEV:
             .tolist()[i]
         _test_is_object(t, s, False)
 
-def sb_dtype(s:pd.Series) -> str:
+def sb_dtype(s:pd.Series,
+             verbose:bool = False) -> str:
     """
     Process the series data type into Small Business categories. This function
     determines the series Small Business data type for a given series. The 
@@ -789,17 +809,17 @@ def sb_dtype(s:pd.Series) -> str:
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
-    if s.is_binary():
+    if s.is_binary(verbose=verbose):
         return "binary"
-    elif s.is_date():
+    elif s.is_date(verbose=verbose):
         return "date"
-    elif s.is_categorical():
+    elif s.is_categorical(verbose=verbose):
         return "categorical"
-    elif s.is_finite_numeric():
+    elif s.is_finite_numeric(verbose=verbose):
         return "finite_numeric"
-    elif s.is_other_numeric():
+    elif s.is_other_numeric(verbose=verbose):
         return "other_numeric"
-    elif s.is_object():
+    elif s.is_object(verbose=verbose):
         return "object"
     else:
         errormsg = "series cannot be coerced to one of the six data types"
@@ -1075,7 +1095,8 @@ s.unique().size: {s.unique().size}
 Expected: {t}
 Actual: {TEST}"""
 
-def format_series(s:pd.Series) -> pd.Series:
+def format_series(s:pd.Series,
+                  verbose:bool = False) -> pd.Series:
     """
     Formats a series. If the series is categorical, then it is formatted as a
     category. If the series is finite numeric, then it is formatted as a float.
@@ -1086,38 +1107,39 @@ def format_series(s:pd.Series) -> pd.Series:
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # get the column type
-    col_type = s.sb_dtype()
+    col_type = s.sb_dtype(verbose=verbose)
 
     # handle nan values
     s = _handle_nan(s)
 
     # if the column type is date, then format it as a date
     if col_type == "date":
-        return s.format_date()
+        return s.fillna(pd.Timestamp("12/31/2999")).format_date()
 
     # if the column type is categorical, then format it as a category
     elif col_type == "categorical":
-        return s.format_categorical()
+        return s.fillna("missing").format_categorical()
     
     # if the column type is finite numeric, then format it as a float
     elif col_type == "finite_numeric":
-        return s.format_finite_numeric()
+        return s.fillna(-9999).format_finite_numeric()
 
     # if the column type is binary, then format it as a binary
     elif col_type == "binary":
-        return s.format_binary()
+        return s.fillna(-9999).format_binary()
     
     # if the column type is other numeric, then format it as a float
     elif col_type == "other_numeric":
-        return s.format_other_numeric()
+        return s.fillna(-9999).format_other_numeric()
     
     # if the column type is object, then format it as a string
     elif col_type == "object":
-        return s.format_object()
+        return s.fillna('missing').format_object()
     
     # otherwise, end the function
     else:
-        return s
+        return s.fillna('missing')
+
 
 # extend the pandas series class to include the format_series method
 pd.Series.format_series = format_series
