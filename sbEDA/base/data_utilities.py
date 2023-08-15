@@ -60,13 +60,11 @@ def _handle_nan(s: pd.Series,
     """
     warnings.filterwarnings('ignore')
 
-    # Check if numeric (replace '.', '', 1 is to allow float)
-    if pd.to_numeric(s, errors='coerce').notna().all():
-        return pd.to_numeric(s).fillna(numeric_nan)
-    
     # Check if all elements can be parsed as dates
     parsed_dates = pd.to_datetime(s, errors='coerce')
     if parsed_dates.notna().sum() / len(s) > date_parsing_threshold:
+        return parsed_dates.fillna(date_nan)
+    elif _is_date_col_name(s):
         return parsed_dates.fillna(date_nan)
     
     # Handle object types
@@ -75,30 +73,50 @@ def _handle_nan(s: pd.Series,
         if str_mask.all():
             return s.fillna("NaN")
         elif str_mask.mean() > string_threshold:
-            return s.astype(str).replace('nan', "NaN").astype('category')
+            return s.astype(str).replace('nan', "NaN")
     
+    # Check if numeric (replace '.', '', 1 is to allow float)
+    if pd.to_numeric(s, errors='coerce').notna().all():
+        return pd.to_numeric(s).fillna(numeric_nan)
+
     # For numeric and date types
     if s.dtype in ['int64', 'float64']:
         return s.fillna(numeric_nan)
     elif np.issubdtype(s.dtype, np.datetime64):
         return s.fillna(date_nan)
     
-    return s.astype('category')
+    return s
 
-def _is_date_col_name(s: pd.Series) -> bool:
+def _is_date_col_name(s: pd.Series,
+                      verbose:bool = False) -> bool:
     # check that the name of the column doesn't have some string that
     # indicates it is a date column
-    if any([i in s.name.lower() for i in ['date', 'time', 'dt', 'dat']]):
-        if s.name.lower() in ['year', 'month', 'day', 'yr', 'mo', 'dy', 'update']:
+    date_names = ['date', 'time', 'dt', 'dat']
+    non_date_names = ['year', 'month', 'day', 'yr', 'mo', 'dy', 'update']
+    if any([i in s.name.lower() for i in date_names]):
+        if verbose:
+            print(f"Column name {s.name} is one of {date_names}, and this \
+indicates it is a date column.")
+        if any([i in s.name.lower() for i in non_date_names]):
+            if verbose:
+                print(f"Column name {s.name} is one of {non_date_names}, which \
+indicates it is NOT a date column.")
             return False
         else:
+            if verbose:
+                print(f"Column name {s.name} is NOT one of {non_date_names}, \
+which indicates it is a date column.")
             return True
     else:
+        if verbose:
+            print(f"Column name {s.name} is NOT one of {date_names}, which \
+indicates it is NOT a date column.")
         return False
 
 # first takes a series and returns a boolean representing whether the
 # series is binary or not
-def is_binary(s: pd.Series) -> bool:
+def is_binary(s: pd.Series,
+              verbose:bool = False) -> bool:
     """
     Determines whether a series is binary or not. If the series has two
     unique values, then it is binary. If the series only has one unique
@@ -107,6 +125,9 @@ def is_binary(s: pd.Series) -> bool:
     "Yes", "No", "Y", "N", "T", "F", "TRUE", "FALSE",
     then it is binary. Otherwise, it is not binary.
     """
+    if verbose:
+        print('Running is_binary function.')
+
     # handle NaN values
     s = _handle_nan(s)
 
@@ -118,7 +139,7 @@ def is_binary(s: pd.Series) -> bool:
     unique_values = s.unique()
 
     # test if the column name indicates that it is a date column
-    if _is_date_col_name(s):
+    if _is_date_col_name(s, verbose=verbose):
         return False
     
     # if there are two unique values, and those values are 0 and 1,
@@ -126,6 +147,9 @@ def is_binary(s: pd.Series) -> bool:
     # "TRUE" and "FALSE", then the series is binary
     # (any of the strings can be upper or lower case in any combination)
     if len(unique_values) == 2:
+        if verbose:
+            print(f"Column {s.name} has two unique values.")
+
         # if both values are strings, make them lowercased
         if isinstance(unique_values[0], str) and isinstance(unique_values[1], str):
             unique_values = [val.lower() for val in unique_values]
@@ -133,6 +157,8 @@ def is_binary(s: pd.Series) -> bool:
         # check if the values are 0 and 1, True and False, or
         # "yes" and "no", "y" and "n", "t" and "f", or
         # "true" and "false"
+        if verbose:
+            print(f"unique_values: {unique_values}")
         if all(i in [0, 1] for i in unique_values):
             return True
         elif all(i in [True, False] for i in unique_values):
@@ -146,14 +172,16 @@ def is_binary(s: pd.Series) -> bool:
         elif all(i in ["true", "false"] for i in unique_values):
             return True
         else:
-            return False ## false because the values could be any pair of strings or dates, etc
+            # false because the values could be any pair of
+            # strings or dates, etc
+            return False 
            
-        
-
     # if there is only one unique value, then the series is binary if
     # that value is 0, 1, True, False, or an upper or lower case version of
     # one of: "Yes", "No", "Y", "N", "T", "F", "TRUE", "FALSE"
     elif len(unique_values) == 1:
+        if verbose:
+            print(f"Column {s.name} has only one unique value: {unique_values[0]}")
         check_val = unique_values[0]
         if isinstance(check_val, str):
             check_val = check_val.upper()
@@ -163,6 +191,9 @@ def is_binary(s: pd.Series) -> bool:
 
     # otherwise, the series is not binary
     else:
+        if verbose:
+            print(f"Column {s.name} has more than two unique values, \
+so it is not binary.")
         return False
     
 # extend the pandas series class to include the is_binary method
@@ -204,7 +235,8 @@ if DEV:
         _test_is_binary(t, s, False)
 
 # next, we extend the pandas series class to include the is_finite_numeric
-def is_finite_numeric(s: pd.Series) -> bool:
+def is_finite_numeric(s: pd.Series,
+                      verbose:bool = False) -> bool:
     """
     Determines whether a series is finite numeric or not. If the series has
     only integer numeric values, then it is finite numeric. Otherwise, it
@@ -217,6 +249,9 @@ def is_finite_numeric(s: pd.Series) -> bool:
     If the series has values that all start with 0, should check if the
     values are all integers, and if so, then it is finite numeric.
     """
+    if verbose:
+        print(f"Checking if {s.name} is finite numeric...")
+
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
     # handle NaN values
@@ -226,7 +261,7 @@ def is_finite_numeric(s: pd.Series) -> bool:
     unique_values = s.unique()
 
     # test if the column name indicates that it is a date column
-    if _is_date_col_name(s):
+    if _is_date_col_name(s, verbose=verbose):
         return False
 
     # error handling this for when it is used below
@@ -1052,6 +1087,9 @@ def format_series(s:pd.Series) -> pd.Series:
 
     # get the column type
     col_type = s.sb_dtype()
+
+    # handle nan values
+    s = _handle_nan(s)
 
     # if the column type is date, then format it as a date
     if col_type == "date":
