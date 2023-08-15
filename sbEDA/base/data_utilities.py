@@ -85,7 +85,16 @@ def _handle_nan(s: pd.Series,
     
     return s.astype('category')
 
-    
+def _is_date_col_name(s: pd.Series) -> bool:
+    # check that the name of the column doesn't have some string that
+    # indicates it is a date column
+    if any([i in s.name.lower() for i in ['date', 'time', 'dt', 'dat']]):
+        if s.name.lower() in ['year', 'month', 'day', 'yr', 'mo', 'dy', 'update']:
+            return False
+        else:
+            return True
+    else:
+        return False
 
 # first takes a series and returns a boolean representing whether the
 # series is binary or not
@@ -107,6 +116,10 @@ def is_binary(s: pd.Series) -> bool:
 
     # get the unique values
     unique_values = s.unique()
+
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return False
     
     # if there are two unique values, and those values are 0 and 1,
     # True and False, "Yes" and "No", "Y" and "N", "T" and "F", or 
@@ -211,6 +224,10 @@ def is_finite_numeric(s: pd.Series) -> bool:
     
     # get the unique values
     unique_values = s.unique()
+
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return False
 
     # error handling this for when it is used below
     def all_floats_are_ints():
@@ -318,12 +335,16 @@ if DEV:
 
 # next, we extend the pandas series class to include the is_date method
 def is_date(s: pd.Series,
-            categorical_cutoff: int = 1000) -> bool:
+            categorical_cutoff: float = 0.15) -> bool:
     """
     Determines whether a series is a date or not. If the series is a date,
     then it is a date. Otherwise, it is not a date.
     """
     # handle NaN values
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return True
+
     s = _handle_nan(s)
     
     unique_values = s.unique()
@@ -336,6 +357,12 @@ def is_date(s: pd.Series,
     # make sure the series is not finite numeric
     elif s.is_finite_numeric():
         return False
+
+    # check that the name of the column doesn't have some string that
+    # indicates it is a date column
+    elif any([i in s.name.lower() for i in ['date', 'time', 'year', 'month', 'day', \
+                                            'yr','mo', 'dy', 'dt', 'dat']]):
+        return True
 
     # if series is numeric, perform further checks
     elif pd.api.types.is_numeric_dtype(s):
@@ -363,7 +390,7 @@ def is_date(s: pd.Series,
                 parsed.dt.day.eq(1).any()).any():
                 return False
 
-            if pd.isnull(parsed).sum() / s.shape[0] > 0.05:  # more than 10% could not be parsed as dates
+            if pd.isnull(parsed).sum() / s.shape[0] > 0.05:
                 return False
             # check if parsed results have day, month, year components
             has_components = (~parsed.dt.day.isnull() & \
@@ -373,7 +400,7 @@ def is_date(s: pd.Series,
             if has_components:
                 return True
             # make sure the series is not categorical
-            elif len(unique_values) < categorical_cutoff:
+            elif len(unique_values) < max(categorical_cutoff * s.shape[0], 1000):
                 return False
             
             else:
@@ -428,7 +455,7 @@ if DEV:
 # next, we extend the pandas series class to include the is_categorical
 # method
 def is_categorical(s: pd.Series,
-                   categorical_cutoff: int = 1000) -> bool:
+                   categorical_cutoff: float = 0.15) -> bool:
     """
     Determines whether a series is categorical or not. If the series has
     less than `categorical_cutoff` unique values, then it is
@@ -438,6 +465,10 @@ def is_categorical(s: pd.Series,
     categorical.
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return False
 
     # handle NaN values
     s = _handle_nan(s)
@@ -482,7 +513,7 @@ def is_categorical(s: pd.Series,
 
     # if the series has less than categorical_cutoff unique
     # values, then it is categorical
-    elif unique_values.shape[0] < categorical_cutoff:
+    elif unique_values.shape[0] < max(categorical_cutoff * s.shape[0], 1000):
         return True
     
     # if there are fewer than 50 unique values, then the series is
@@ -555,11 +586,21 @@ def is_other_numeric(s: pd.Series) -> bool:
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return False
+
     # handle NaN values
     s = _handle_nan(s)
     
     # if the series is binary, then it is not other numeric
     if s.is_binary():
+        return False
+
+    # check that the name of the column doesn't have some string that
+    # indicates it is a date column
+    elif any([i in s.name.lower() for i in ['date', 'time', 'year', 'month', 'day', \
+                                            'yr','mo', 'dy', 'dt', 'dat']]):
         return False
 
     # if the series is a date, then it is not other numeric
@@ -635,6 +676,10 @@ def is_object(s:pd.Series) -> bool:
     not binary, date, categorical, or numeric.
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
+
+    # test if the column name indicates that it is a date column
+    if _is_date_col_name(s):
+        return False
 
     # handle NaN values
     s = _handle_nan(s)
@@ -1008,13 +1053,21 @@ def format_series(s:pd.Series) -> pd.Series:
     # get the column type
     col_type = s.sb_dtype()
 
+    # if the column type is date, then format it as a date
+    if col_type == "date":
+        return s.format_date()
+
     # if the column type is categorical, then format it as a category
-    if col_type == "categorical":
+    elif col_type == "categorical":
         return s.format_categorical()
     
     # if the column type is finite numeric, then format it as a float
     elif col_type == "finite_numeric":
         return s.format_finite_numeric()
+
+    # if the column type is binary, then format it as a binary
+    elif col_type == "binary":
+        return s.format_binary()
     
     # if the column type is other numeric, then format it as a float
     elif col_type == "other_numeric":
@@ -1023,14 +1076,6 @@ def format_series(s:pd.Series) -> pd.Series:
     # if the column type is object, then format it as a string
     elif col_type == "object":
         return s.format_object()
-    
-    # if the column type is binary, then format it as a binary
-    elif col_type == "binary":
-        return s.format_binary()
-    
-    # if the column type is date, then format it as a date
-    elif col_type == "date":
-        return s.format_date()
     
     # otherwise, end the function
     else:
