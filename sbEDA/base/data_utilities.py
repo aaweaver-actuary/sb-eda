@@ -44,6 +44,15 @@ from reformatted_testingdata import *
 examples = get_examples()
 examples_re = get_examples_re()
 
+def _handle_nan(s: pd.Series) -> pd.Series:
+    """
+    This function takes a series and returns a series with the NaN values
+    handled. If the series is character, then the NaN values are replaced
+    with "NaN". If the series is numeric, then the NaN values are replaced
+    with the -9999. If the series is a date, then the NaN values are replaced
+    with 12/31/2999.
+    """
+    
 
 # first takes a series and returns a boolean representing whether the
 # series is binary or not
@@ -56,6 +65,11 @@ def is_binary(s: pd.Series) -> bool:
     "Yes", "No", "Y", "N", "T", "F", "TRUE", "FALSE",
     then it is binary. Otherwise, it is not binary.
     """
+    # if the series is empty, it is not binary
+    if s.empty:
+        return False
+
+    
 
     # get the unique values
     unique_values = s.unique()
@@ -267,7 +281,7 @@ if DEV:
 
 # next, we extend the pandas series class to include the is_date method
 def is_date(s: pd.Series,
-            categorical_cutoff: int = 100) -> bool:
+            categorical_cutoff: int = 1000) -> bool:
     """
     Determines whether a series is a date or not. If the series is a date,
     then it is a date. Otherwise, it is not a date.
@@ -374,7 +388,7 @@ if DEV:
 # next, we extend the pandas series class to include the is_categorical
 # method
 def is_categorical(s: pd.Series,
-                   categorical_cutoff: int = 100) -> bool:
+                   categorical_cutoff: int = 1000) -> bool:
     """
     Determines whether a series is categorical or not. If the series has
     less than `categorical_cutoff` unique values, then it is
