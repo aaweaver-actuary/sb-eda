@@ -38,13 +38,20 @@ import numpy as np
 
 import warnings
 
-from testingdata import *
-from reformatted_testingdata import *
 
-examples = get_examples()
-examples_re = get_examples_re()
+if DEV:
+    from testingdata import *
+    from reformatted_testingdata import *
 
-def _handle_nan(s: pd.Series) -> pd.Series:
+    examples = get_examples()
+    examples_re = get_examples_re()
+
+def _handle_nan(s: pd.Series,
+                numeric_nan: float = -9999,
+                date_nan: pd.Timestamp = pd.Timestamp('2999-12-31'),
+                char_nan: str = "NaN",
+                date_parsing_threshold: float = 0.05,
+                string_threshold: float = 0.5) -> pd.Series:
     """
     This function takes a series and returns a series with the NaN values
     handled. If the series is character, then the NaN values are replaced
@@ -52,27 +59,29 @@ def _handle_nan(s: pd.Series) -> pd.Series:
     with the -9999. If the series is a date, then the NaN values are replaced
     with 12/31/2999.
     """
+    warnings.filterwarnings('ignore')
+    
     # Check if all elements can be converted to numeric
     if s.apply(lambda x: str(x).replace('.', '', 1).isnumeric() or pd.isna(x)).all():
-        return s.astype(float).fillna(-9999)
+        return s.astype(float).fillna(numeric_nan)
     
     # Check if all elements can be parsed as dates
     try:
         parsed_dates = pd.to_datetime(s, errors='coerce')
-        if parsed_dates.isnull().sum() / len(s) < 0.05:  # less than 5% parsing errors
-            return parsed_dates.fillna(pd.Timestamp('2999-12-31'))
+        if parsed_dates.isnull().sum() / len(s) < date_parsing_threshold:  
+            return parsed_dates.fillna(date_nan)
     except:
         pass
     
     # Original conditions
     if s.dtype == 'object' and s.map(type).eq(str).all():
-        return s.fillna("NaN")
+        return s.fillna(char_nan)
     elif s.dtype in ['int64', 'float64']:
-        return s.fillna(-9999)
+        return s.fillna(numeric_nan)
     elif np.issubdtype(s.dtype, np.datetime64):
-        return s.fillna(pd.Timestamp('2999-12-31'))
+        return s.fillna(date_nan)
     else:
-        if s.apply(lambda x: isinstance(x, str)).mean() > 0.5:
+        if s.apply(lambda x: isinstance(x, str)).mean() > string_threshold:
             return s.astype(str).replace('nan', "NaN").astype('category')
         else:
             return s.astype('category')
@@ -90,11 +99,12 @@ def is_binary(s: pd.Series) -> bool:
     "Yes", "No", "Y", "N", "T", "F", "TRUE", "FALSE",
     then it is binary. Otherwise, it is not binary.
     """
+    # handle NaN values
+    s = _handle_nan(s)
+
     # if the series is empty, it is not binary
     if s.empty:
         return False
-
-    
 
     # get the unique values
     unique_values = s.unique()
@@ -197,6 +207,9 @@ def is_finite_numeric(s: pd.Series) -> bool:
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
+    # handle NaN values
+    s = _handle_nan(s)
+    
     # get the unique values
     unique_values = s.unique()
 
@@ -311,6 +324,9 @@ def is_date(s: pd.Series,
     Determines whether a series is a date or not. If the series is a date,
     then it is a date. Otherwise, it is not a date.
     """
+    # handle NaN values
+    s = _handle_nan(s)
+    
     unique_values = s.unique()
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
@@ -424,6 +440,9 @@ def is_categorical(s: pd.Series,
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
+    # handle NaN values
+    s = _handle_nan(s)
+    
     # get the unique values
     unique_values = s.unique()
 
@@ -537,6 +556,9 @@ def is_other_numeric(s: pd.Series) -> bool:
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
+    # handle NaN values
+    s = _handle_nan(s)
+    
     # if the series is binary, then it is not other numeric
     if s.is_binary():
         return False
@@ -615,6 +637,9 @@ def is_object(s:pd.Series) -> bool:
     """
     assert isinstance(s, pd.Series), "s must be a pandas series"
 
+    # handle NaN values
+    s = _handle_nan(s)
+    
     # if the series is binary, then it is not an object
     if s.is_binary():
         return False
