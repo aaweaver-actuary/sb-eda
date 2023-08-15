@@ -38,7 +38,6 @@ import numpy as np
 
 import warnings
 
-
 if DEV:
     from testingdata import *
     from reformatted_testingdata import *
@@ -50,7 +49,7 @@ def _handle_nan(s: pd.Series,
                 numeric_nan: float = -9999,
                 date_nan: pd.Timestamp = pd.Timestamp('2999-12-31'),
                 char_nan: str = "NaN",
-                date_parsing_threshold: float = 0.05,
+                date_parsing_threshold: float = 0.95,
                 string_threshold: float = 0.5) -> pd.Series:
     """
     This function takes a series and returns a series with the NaN values
@@ -60,29 +59,29 @@ def _handle_nan(s: pd.Series,
     with 12/31/2999.
     """
     warnings.filterwarnings('ignore')
-    
+
     # Check if numeric (replace '.', '', 1 is to allow float)
     if pd.to_numeric(s, errors='coerce').notna().all():
-        return pd.to_numeric(s).fillna(-9999)
+        return pd.to_numeric(s).fillna(numeric_nan)
     
     # Check if all elements can be parsed as dates
     parsed_dates = pd.to_datetime(s, errors='coerce')
-    if parsed_dates.notna().sum() / len(s) > 0.95:  # more than 95% parsed successfully
-        return parsed_dates.fillna(pd.Timestamp('2999-12-31'))
+    if parsed_dates.notna().sum() / len(s) > date_parsing_threshold:
+        return parsed_dates.fillna(date_nan)
     
     # Handle object types
     if s.dtype == 'object':
         str_mask = s.map(type).eq(str)
         if str_mask.all():
             return s.fillna("NaN")
-        elif str_mask.mean() > 0.5:
+        elif str_mask.mean() > string_threshold:
             return s.astype(str).replace('nan', "NaN").astype('category')
     
     # For numeric and date types
     if s.dtype in ['int64', 'float64']:
-        return s.fillna(-9999)
+        return s.fillna(numeric_nan)
     elif np.issubdtype(s.dtype, np.datetime64):
-        return s.fillna(pd.Timestamp('2999-12-31'))
+        return s.fillna(date_nan)
     
     return s.astype('category')
 
@@ -1035,5 +1034,7 @@ def format_series(s:pd.Series) -> pd.Series:
     
     # otherwise, end the function
     else:
-        return
-    
+        return s
+
+# extend the pandas series class to include the format_series method
+pd.Series.format_series = format_series
