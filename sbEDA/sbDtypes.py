@@ -3,7 +3,8 @@ import numpy as np
 import warnings
 
 class ColDType:
-    def __init__(self, s:pd.Series,
+    def __init__(self,
+                 s:pd.Series,
                  categorical_cutoff: float = 0.15,
                  verbose:bool=False):
         self.s = s
@@ -20,6 +21,8 @@ class ColDType:
 
         self.is_type_known = False
         self.sb_dype = None
+        self.is_empty = None
+        self.distinct = None
 
     def __post_init__(self):
         # set self.is_empty
@@ -30,6 +33,9 @@ class ColDType:
 
         # set self.distinct
         self.distinct = self.s.drop_duplicates().reset_index(drop=True)
+
+        # handle NaN values
+        self._handle_nan()
 
     def set_type(self,
                  dtype: str = None):
@@ -174,9 +180,6 @@ indicates it is NOT a date column.")
 
         if self.verbose:
             print(f"Checking if {self.s.name} is binary...")
-
-        # handle NaN values
-        self.s = self._handle_nan()
 
         # if the series is empty, it is not binary
         if self.is_empty:
