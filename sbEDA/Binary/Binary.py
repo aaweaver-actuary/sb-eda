@@ -1,4 +1,4 @@
-from sbEDA.base import base
+from ...base import base
 import pandas as pd
 
 class Binary(base):
