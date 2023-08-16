@@ -9,25 +9,14 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import seaborn as sns
 
-
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
 import statsmodels.api as sm
 from scipy.stats import ks_2samp
 
-_figsize = (10, 7)
+from util.significance_label import _get_significance_band
 
-def _get_significance_band(p_value, statistic):
-    if p_value < 0.01:
-        significance_statement = f"Extremely likely that the {statistic} is significant"
-    elif p_value < 0.05:
-        significance_statement = f"Very likely that the {statistic} is significant"
-    elif p_value < 0.10:
-        significance_statement = f"Somewhat likely that the {statistic} is significant"
-    else:
-        significance_statement = f"Unlikely that the {statistic} is significant"
-    return significance_statement
+_figsize = (10, 7)
 
 def _format_plot(feature,
                  target,
@@ -248,7 +237,7 @@ def binary_roc_auc(feature: pd.Series,
     feature_name = feature.name
 
     # Fit logistic regression model
-    log_reg = LogisticRegression(penalty='none')
+    log_reg = LogisticRegression(penalty=None)
     log_reg.fit(feature.values.reshape(-1,1), target)
 
     # Predict probability
