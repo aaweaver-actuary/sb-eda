@@ -1,3 +1,83 @@
+"""
+This module defines the `ColDType` class. This class is used to:
+
+1. Determine the sb-dtype that a series is intended to be.
+2. Clean and recode the series based on the sb-dtype.
+3. Format the series based on the sb-dtype.
+4. Produce a table with the old-to-new mappings.
+
+The sb-dtypes are as follows:
+1. `binary`
+    Python Output Type: int
+    Intended to represent: Yes/No, True/False, etc
+    Missing values: -9999
+    Note: Regardless of the original dtype, the series will be converted to
+        int. The values will be recoded as follows:
+            - True/Yes/1 -> 1
+            - False/No/0 -> 0
+            - NaN/None/missing -> -9999
+2. `categorical`
+    Python Output Type: category
+    Intended to represent: categories, eg strings, numbers, etc with a small
+        number of unique values
+    Missing values: 'missing'
+3. `date`
+    Python Output Type: datetime64[ns]
+    Intended to represent: dates
+    Missing values: pd.Timestamp('1970-01-01')
+    Note: 1970-01-01 is the start of the Unix epoch, eg the first possible date
+        in pandas
+4. `finite_numeric`
+    Python Output Type: int | float
+    Intended to represent: numbers with a finite number of unique values, or 
+        numbers with a reasonable upper bound on the number of unique values, 
+        eg age, number of cars, etc
+    Missing values: -9999
+5. `other_numeric`
+    Python Output Type: int | float
+    Intended to represent: numbers with no reasonable upper bound on the number
+        of unique values, eg income, number of people in a city, etc
+    Missing values: -9999
+6. `object`
+    Python Output Type: pandas object | str
+    Intended to represent: strings, numbers, etc with a large number of unique
+        values that don't fit into the other categories. These are series that 
+        are unlikely to be useful in a modeling context, eg names, addresses,
+        etc
+    Missing values: 'missing'
+
+Most of the methods in this class are not intended to be called directly. The 
+user probably does not need to call the _is_binary() method, for example, as
+the class will call this method internally. The user should only be interested
+in the following methods:
+
+1. __init__()
+    Obviously not called directly, but the user should be aware of the
+    parameters that can be passed to this method.
+2. sb_dtype()
+    This method determines the sb-dtype of the series. It returns the sb-dtype
+    if the `return_` parameter is set to True. Otherwise, it sets the self.dtype
+    attribute to one of the possible sb-dtypes.
+3. format_series()
+    This method sets the self.s_fmt attribute to the formatted series. The
+    formatted series is the original series with the NaN values replaced as
+    indicated above and the sb-dtype applied.
+4. GetS()
+    This method returns the original series, optionally with the NaN values
+    replaced as indicated above or dropped entirely.
+5. GetSFmt()
+    This method returns the formatted series. The formatted series is the
+    original series with the NaN values replaced as indicated above and the
+    sb-dtype applied. Missing values are recoded as indicated above, unless
+    the drop_na parameter is set to True, in which case the missing values are
+    filtered out (based on the assumption that their values follow those of
+    the sb-dtype).
+
+
+
+"""
+
+
 import pandas as pd
 import numpy as np
 import warnings
@@ -7,14 +87,12 @@ class ColDType:
                  s:pd.Series,
                  categorical_cutoff: float = 0.15,
                  verbose:bool=False,
-                 binary_na_fill = -9999,
-                 categorical_na_fill = 'missing',
-                 date_na_fill = pd.Timestamp('2345-12-31',
-                                             unit='D',
-                                             tz='UTC'),
-                 finite_numeric_na_fill = -9999,
-                 other_numeric_na_fill = -9999,
-                 object_na_fill = 'missing'
+                 binary_na_fill:int = -9999,
+                 categorical_na_fill:str = 'missing',
+                 date_na_fill:pd.Timestamp = pd.Timestamp('1970-01-01'),
+                 finite_numeric_na_fill:int = -9999,
+                 other_numeric_na_fill:int = -9999,
+                 object_na_fill:str = 'missing'
                  ):
         self.s = s
         self.verbose = verbose
@@ -39,6 +117,14 @@ class ColDType:
         self.is_type_known = False
         self.dtype = None
         self.is_empty = None
+        self.is_formatted = False
+
+        if self.s.shape[0] == 0:
+            self.is_empty = True
+        elif self.s.isna().sum() == self.s.shape[0]:
+            self.is_empty = True
+        else:
+            self.is_empty = False
 
     def __post_init__(self):
         """
@@ -52,11 +138,35 @@ class ColDType:
         else:
             self.is_empty = False
 
-        # handle NaN values
-        self._handle_nan()
+        
 
     def __repr__(self):
         return f"ColDType({self.s.name})"
+
+    def GetNAFill(self):
+        """
+        This function returns the appropriate NaN fill value for the series, 
+        depending on the sb-dtype of the series.
+        """
+        # determine the sb-dtype of the series if it is not known
+        if not self.is_type_known:
+            self.sb_dtype()
+
+        # return the appropriate NaN fill value
+        if self.is_binary:
+            return self.binary_na_fill
+        elif self.is_categorical:
+            return self.categorical_na_fill
+        elif self.is_date:
+            return self.date_na_fill
+        elif self.is_finite_numeric:
+            return self.finite_numeric_na_fill
+        elif self.is_other_numeric:
+            return self.other_numeric_na_fill
+        elif self.is_object:
+            return self.object_na_fill
+        else:
+            raise ValueError("The sb-dtype of the series is not recognized.")
 
     def GetS(self,
              replace_na = None,
@@ -132,6 +242,64 @@ class ColDType:
             return self.s.dropna()
         else:
             return self.s
+
+    def GetSFmt(self,
+                drop_na: bool = False) -> pd.Series:
+        """
+        This function returns the formatted series. The formatted series is the
+        original series with the NaN values replaced as indicated above and the
+        sb-dtype applied. Missing values are recoded as indicated above, unless
+        the drop_na parameter is set to True, in which case the missing values are
+        filtered out (based on the assumption that their values follow those of
+        the sb-dtype).
+
+        Parameters
+        ----------
+        drop_na : bool, optional
+            Whether or not to drop the NaN values. The default is False.
+
+        Returns
+        -------
+        pd.Series
+            The formatted series.
+
+        Example Usage
+        -------------
+        >>> s = pd.Series([1, 2, 3, np.nan, 5])
+        >>> c = ColDType(s)
+        >>> c.format_series()
+        >>> c.dtype
+        'finite_numeric'
+
+        >>> c.GetSFmt()
+        0    1
+        1    2
+        2    3
+        3   -9999
+        4    5
+
+        >>> c.GetSFmt(drop_na=True)
+        0    1
+        1    2
+        2    3
+        4    5
+        """
+        assert not self.is_empty, \
+            "Series is empty, so you cannot get the formatted series."
+
+        # format the series if it is not already formatted
+        if not self.is_formatted:
+            self.format_series()
+            
+        # return the formatted series
+        s = self.s_fmt
+
+        # filter out the NaN values if drop_na is True
+        if drop_na:
+            na_value = self.GetNAFill()
+            s = s[s != na_value]
+
+        return s
 
     def set_type(self,
                  dtype: str = None,
@@ -327,60 +495,29 @@ You specified dtype = '{dtype}'."""
         """
         return self.get_unique_values(replace_na=replace_na, drop_na=drop_na)
 
-    # def _handle_nan(self,
-    #                 date_parsing_threshold: float = 0.95,
-    #                 string_threshold: float = 0.5) -> pd.Series:
-    #     """
-    #     This function takes a series and returns a series with the NaN values
-    #     handled. If the series is character, then the NaN values are replaced
-    #     with "NaN". If the series is numeric, then the NaN values are replaced
-    #     with the -9999. If the series is a date, then the NaN values are replaced
-    #     with 12/31/2345.
-    #     """
-    #     # Handle NaN values
-    #     numeric_nan = self.finite_numeric_na_fill
-    #     date_nan = self.date_na_fill
-    #     char_nan = self.object_na_fill
-
-    #     warnings.filterwarnings('ignore')
-        
-    #     if self.is_empty:
-    #         return None
-        
-    #     # Check if all elements can be parsed as dates
-    #     parsed_dates = pd.to_datetime(self.GetS(replace_na=pd.Timestamp('12/31/2345'))
-    #                                   , errors='coerce')
-
-    #     # Handle date types (replace '.', '', 1 is to allow float)
-    #     if parsed_dates.notna().sum() / len(self.s) > date_parsing_threshold:
-    #         s =  parsed_dates.fillna(date_nan)
-    #     elif self._is_date_col_name(self.s):
-    #         self.s =  parsed_dates.fillna(date_nan)
-    #     elif self.is_date is not None:
-    #         if self.is_date:
-    #             self.s =  self.s.fillna(date_nan)
-        
-    #     # Handle object types
-    #     if self.s.dtype == 'object':
-    #         str_mask = self.s.map(type).eq(str)
-    #         if str_mask.all():
-    #             self.s =  self.s.fillna(char_nan)
-    #         elif str_mask.mean() > string_threshold:
-    #             self.s =  self.s.astype(str).replace(char_nan.lower(), char_nan)
-        
-    #     # Check if numeric (replace '.', '', 1 is to allow float)
-    #     if pd.to_numeric(self.s, errors='coerce').notna().all():
-    #         self.s =  pd.to_numeric(self.s).fillna(numeric_nan)
-
-    #     # For numeric and date types
-    #     if self.s.dtype in ['int64', 'float64']:
-    #         self.s =  self.s.fillna(numeric_nan)
-    #     elif np.issubdtype(self.s.dtype, np.datetime64):
-    #         self.s = self.s.fillna(date_nan)
-
     def _is_date_col_name(self) -> bool:
-        # check that the name of the column doesn't have some string that
-        # indicates it is a date column
+        """
+        This function checks if the name of the column contains a string
+        that indicates it is a date column.
+
+        Returns
+        -------
+        bool
+            Whether or not the name of the column contains a string that
+            indicates it is a date column.
+
+        Example Usage
+        -------------
+        >>> s = pd.Series([1, 2, 3], name='update')
+        >>> cdt = ColDType(s)
+        >>> cdt._is_date_col_name()
+        False
+
+        >>> s = pd.Series([1, 2, 3], name='accident_date')
+        >>> cdt = ColDType(s)
+        >>> cdt._is_date_col_name()
+        True
+        """
         date_names = ['date', 'time', 'dt', 'dat']
         non_date_names = ['year', 'month', 'day', 'yr', 'mo', 'dy', 'update']
         try:
@@ -417,6 +554,38 @@ indicates it is NOT a date column.")
         0, 1, True, False, or an upper or lower case version of one of:
         "Yes", "No", "Y", "N", "T", "F", "TRUE", "FALSE",
         then it is binary. Otherwise, it is not binary.
+
+        Parameters
+        ----------
+        s : pd.Series, optional
+            The series to check. The default is None. If `s` is None, then
+            the function will use `self.s`.
+        return_ : bool, optional
+            Whether or not to return the result. The default is False. If
+            `return_` is True, then the function will return the result.
+            Otherwise, it will only set `self.is_binary` to the result.
+
+        Returns
+        -------
+        bool
+            Whether or not the series is binary.
+
+        Example Usage
+        -------------
+        >>> s = pd.Series([1, 1, 3, 4, np.nan, 4])
+        >>> cdt = ColDType(s)
+        >>> cdt._is_binary()
+        False
+
+        >>> s = pd.Series([1, 1, 0, 0, 1, 0])
+        >>> cdt = ColDType(s)
+        >>> cdt._is_binary()
+        True
+
+        >>> s = pd.Series(['t', 'f', 't', 't', 'f', 'f'])
+        >>> cdt = ColDType(s)
+        >>> cdt._is_binary()
+        True
         """
         # no reason to keep going if the type is already known
         if self.is_type_known:
@@ -526,6 +695,40 @@ so it is not binary.")
 
         If the series has values that all start with 0, should check if the
         values are all integers, and if so, then it is finite numeric.
+
+        Parameters
+        ----------
+        s : pd.Series, optional
+            The series to check. If None, then self.s is used, by default None
+        return_ : bool, optional
+            Whether to return the result or not, by default False
+
+        Returns
+        -------
+        bool
+            Whether the series is finite numeric or not
+
+        Example Usage
+        -------------
+        >>> df = pd.DataFrame({'col1': [1, 2, 3, 4, 5],
+                               'col2': [1.0, 2.0, 3.0, 4.0, 5.0],
+                               'col4': ['1', '2', '3', '4', '5']})
+        >>> cdt = ColDType(df['col1'])
+        >>> cdt._is_finite_numeric()
+        True
+
+        >>> cdt = ColDType(df['col2'])
+        >>> cdt._is_finite_numeric()
+        True
+
+        >>> cdt = ColDType(df['col4'])
+        >>> cdt._is_finite_numeric()
+        False
+
+        >>> n_molecules = [10**np.random.randint(0, 10) for _ in range(150000000)]
+        >>> cdt = ColDType(pd.Series(n_molecules))
+        >>> cdt._is_finite_numeric()
+        False
         """
         if self.is_type_known:
             return None
@@ -1085,19 +1288,19 @@ so it is not binary.")
             return None
 
         # otherwise, format the series as a datetime
-        s = pd.to_datetime(self.GetS(), unit='D')\
+        s = pd.to_datetime(self.GetS())\
               .fillna(self.date_na_fill)
-        print(1)
-        print(f"1: s.dtype: {s.dtype}\n\ns: {s}\n")
+        # print(1)
+        # print(f"1: s.dtype: {s.dtype}\n\ns: {s}\n")
         if s.dtype == "datetime64[ns]":
             self.s_fmt = s
-            print(2)
-            print(f"2: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
+            # print(2)
+            # print(f"2: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
         else:
-            print(3)
-            self.s_fmt = pd.to_datetime(s, unit='D')
+            # print(3)
+            self.s_fmt = pd.to_datetime(s)
             
-            print(f"3: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
+            # print(f"3: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
 
     def format_categorical(self):
         """
@@ -1182,69 +1385,53 @@ so it is not binary.")
         # if the column type is date, then format it as a date
         if self.is_date:
             self.format_date()
+            self.is_formatted = True
 
         # if the column type is categorical, then format it as a category
         elif self.is_categorical:
             self.format_categorical()
+            self.is_formatted = True
         
         # if the column type is finite numeric, then format it as a float
         elif self.is_finite_numeric:
             self.format_finite_numeric()
+            self.is_formatted = True
 
         # if the column type is binary, then format it as a binary
         elif self.is_binary:
             self.format_binary()
+            self.is_formatted = True
         
         # if the column type is other numeric, then format it as a float
         elif self.is_other_numeric:
             self.format_other_numeric()
+            self.is_formatted = True
         
         # if the column type is object, then format it as a string
         elif self.is_object:
             self.format_object()
+            self.is_formatted = True
         
         # otherwise, end the function
         else:
             self.s_fmt = self.s.copy().fillna(self.object_na_fill)
+            self.is_formatted = True
 
-###### UPDATE PD.SERIES WITH NEW METHOD ######
+    def GetMap(self) -> pd.DataFrame:
+        """
+        Produces a table that maps the original values to the formatted values.
+        """
+        # if the series is not formatted, then format it
+        if not self.is_formatted:
+            self.format_series()
 
-# # extend the pandas series class to include the is_binary method
-# pd.Series.is_binary = is_binary 
-
-# # extend the pandas series class to include the is_finite_numeric method
-# pd.Series.is_finite_numeric = is_finite_numeric
-
-# # extend the pandas series class to include the is_other_numeric method
-# pd.Series.is_other_numeric = is_other_numeric
-
-# # extend the pandas series class to include the is_date method
-# pd.Series.is_date = is_date
-
-# # extend the pandas series class to include the is_categorical method
-# pd.Series.is_categorical = is_categorical
-
-# # extend the pandas series class to include the sb_dtype method
-# pd.Series.sb_dtype = sb_dtype
-
-# # extend the pandas series class to include the format_series method
-# pd.Series.format_series = format_series
-
-# # extend the pandas series class to include the format_object method
-# pd.Series.format_object = format_object
-
-# # extend the pandas series class to include the format_finite_numeric method
-# pd.Series.format_finite_numeric = format_finite_numeric
-
-# # extend the pandas series class to include the format_other_numeric method
-# pd.Series.format_other_numeric = format_other_numeric
-
-# # extend the pandas series class to include the format_categorical method
-# pd.Series.format_categorical = format_categorical
-
-# # extend the pandas series class to include the format_date method
-# pd.Series.format_date = format_date
-
-
-# # extend the pandas series class to include the format_binary method
-# pd.Series.format_binary = format_binary
+        # if the series is other numeric or finite numeric, then end the function
+        if self.is_other_numeric or self.is_finite_numeric:
+            return None
+        
+        # otherwise, produce the map
+        else:
+            return pd.DataFrame({
+                "original": self.s,
+                "formatted": self.s_fmt
+            }).drop_duplicates().reset_index(drop=True)
