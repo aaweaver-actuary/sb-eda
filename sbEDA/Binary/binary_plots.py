@@ -397,4 +397,4 @@ def binary_plots(df: pd.DataFrame,
     ax3 = binary_roc_auc(df[feature], df[target], ax=ax3)
     ax4 = binary_ks_plot(df[feature], df[target], ax=ax4)
     plt.tight_layout()
-    return plt.gca()
+    plt.show()
