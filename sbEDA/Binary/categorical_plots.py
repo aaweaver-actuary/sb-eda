@@ -3,9 +3,18 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import chi2_contingency
 
-from util.significance_label import _get_significance_band
-
 _figsize = (10, 7)
+
+def _get_significance_band(p_value, statistic):
+    if p_value < 0.01:
+        significance_statement = f"Extremely likely that the {statistic} is significant"
+    elif p_value < 0.05:
+        significance_statement = f"Very likely that the {statistic} is significant"
+    elif p_value < 0.10:
+        significance_statement = f"Somewhat likely that the {statistic} is significant"
+    else:
+        significance_statement = f"Unlikely that the {statistic} is significant"
+    return significance_statement
 
 def _plot_label(s: str):
     s = s.replace('_', ' ').title()
@@ -91,7 +100,7 @@ def plot_point_plot(feature,
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
 
-    sns.pointplot(x=feature, y=target, errorbar=('ci', 95), ax=ax)  # Including 95% confidence intervals
+    sns.pointplot(x=feature, y=target, errorbar=('ci', 95), ax=ax) 
     sns.stripplot(x=feature, y=target, color='gray', alpha=0.5, ax=ax) # Including strip plot
 
     # Set title and labels
