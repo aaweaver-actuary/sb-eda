@@ -9,7 +9,9 @@ class ColDType:
                  verbose:bool=False,
                  binary_na_fill = -9999,
                  categorical_na_fill = 'missing',
-                 date_na_fill = pd.Timestamp('2999-12-31'),
+                 date_na_fill = pd.Timestamp('2345-12-31',
+                                             unit='D',
+                                             tz='UTC'),
                  finite_numeric_na_fill = -9999,
                  other_numeric_na_fill = -9999,
                  object_na_fill = 'missing'
@@ -191,7 +193,8 @@ class ColDType:
         AssertionError: Invalid dtype.
         
         dtype must be one of the following: 
-        'binary', 'categorical', 'date', 'finite_numeric', 'other_numeric', 'object', None.
+        'binary', 'categorical', 'date', 'finite_numeric', \
+        'other_numeric', 'object', None.
         
         You specified dtype = 'andy'.
         """
@@ -324,61 +327,66 @@ You specified dtype = '{dtype}'."""
         """
         return self.get_unique_values(replace_na=replace_na, drop_na=drop_na)
 
-    def _handle_nan(self,
-                    date_parsing_threshold: float = 0.95,
-                    string_threshold: float = 0.5) -> pd.Series:
-        """
-        This function takes a series and returns a series with the NaN values
-        handled. If the series is character, then the NaN values are replaced
-        with "NaN". If the series is numeric, then the NaN values are replaced
-        with the -9999. If the series is a date, then the NaN values are replaced
-        with 12/31/2999.
-        """
-        # Handle NaN values
-        numeric_nan = self.finite_numeric_na_fill
-        date_nan = self.date_na_fill
-        char_nan = self.object_na_fill
+    # def _handle_nan(self,
+    #                 date_parsing_threshold: float = 0.95,
+    #                 string_threshold: float = 0.5) -> pd.Series:
+    #     """
+    #     This function takes a series and returns a series with the NaN values
+    #     handled. If the series is character, then the NaN values are replaced
+    #     with "NaN". If the series is numeric, then the NaN values are replaced
+    #     with the -9999. If the series is a date, then the NaN values are replaced
+    #     with 12/31/2345.
+    #     """
+    #     # Handle NaN values
+    #     numeric_nan = self.finite_numeric_na_fill
+    #     date_nan = self.date_na_fill
+    #     char_nan = self.object_na_fill
 
-        warnings.filterwarnings('ignore')
+    #     warnings.filterwarnings('ignore')
         
-        if self.is_empty:
-            return None
+    #     if self.is_empty:
+    #         return None
+        
+    #     # Check if all elements can be parsed as dates
+    #     parsed_dates = pd.to_datetime(self.GetS(replace_na=pd.Timestamp('12/31/2345'))
+    #                                   , errors='coerce')
 
-        s = self.GetS()
+    #     # Handle date types (replace '.', '', 1 is to allow float)
+    #     if parsed_dates.notna().sum() / len(self.s) > date_parsing_threshold:
+    #         s =  parsed_dates.fillna(date_nan)
+    #     elif self._is_date_col_name(self.s):
+    #         self.s =  parsed_dates.fillna(date_nan)
+    #     elif self.is_date is not None:
+    #         if self.is_date:
+    #             self.s =  self.s.fillna(date_nan)
         
-        # Check if all elements can be parsed as dates
-        parsed_dates = pd.to_datetime(self.s, errors='coerce')
-        if parsed_dates.notna().sum() / len(self.s) > date_parsing_threshold:
-            self.s =  parsed_dates.fillna(date_nan)
-        elif self._is_date_col_name(self.s):
-            self.s =  parsed_dates.fillna(date_nan)
-        elif self.is_date is not None:
-            if self.is_date:
-                self.s =  self.s.fillna(date_nan)
+    #     # Handle object types
+    #     if self.s.dtype == 'object':
+    #         str_mask = self.s.map(type).eq(str)
+    #         if str_mask.all():
+    #             self.s =  self.s.fillna(char_nan)
+    #         elif str_mask.mean() > string_threshold:
+    #             self.s =  self.s.astype(str).replace(char_nan.lower(), char_nan)
         
-        # Handle object types
-        if self.s.dtype == 'object':
-            str_mask = self.s.map(type).eq(str)
-            if str_mask.all():
-                self.s =  self.s.fillna(char_nan)
-            elif str_mask.mean() > string_threshold:
-                self.s =  self.s.astype(str).replace(char_nan.lower(), char_nan)
-        
-        # Check if numeric (replace '.', '', 1 is to allow float)
-        if pd.to_numeric(self.s, errors='coerce').notna().all():
-            self.s =  pd.to_numeric(self.s).fillna(numeric_nan)
+    #     # Check if numeric (replace '.', '', 1 is to allow float)
+    #     if pd.to_numeric(self.s, errors='coerce').notna().all():
+    #         self.s =  pd.to_numeric(self.s).fillna(numeric_nan)
 
-        # For numeric and date types
-        if self.s.dtype in ['int64', 'float64']:
-            self.s =  self.s.fillna(numeric_nan)
-        elif np.issubdtype(self.s.dtype, np.datetime64):
-            self.s = self.s.fillna(date_nan)
+    #     # For numeric and date types
+    #     if self.s.dtype in ['int64', 'float64']:
+    #         self.s =  self.s.fillna(numeric_nan)
+    #     elif np.issubdtype(self.s.dtype, np.datetime64):
+    #         self.s = self.s.fillna(date_nan)
 
     def _is_date_col_name(self) -> bool:
         # check that the name of the column doesn't have some string that
         # indicates it is a date column
         date_names = ['date', 'time', 'dt', 'dat']
         non_date_names = ['year', 'month', 'day', 'yr', 'mo', 'dy', 'update']
+        try:
+            self.s.name = self.s.name.lower()
+        except AttributeError:
+            return
         if any([i in self.s.name.lower() for i in date_names]):
             if self.verbose:
                 print(f"Column name {self.s.name} is one of {date_names}, and this \
@@ -420,15 +428,16 @@ indicates it is NOT a date column.")
 
         # if a series was passed in, use that instead of self.s, otherwise
         # use self.s
-        if s is not None:
-            s = self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
         
-        # filter out NaN values that have been recoded
-        mask = s.isin([self.binary_na_fill,\
-                       self.finite_numeric_na_fill,\
-                       self.date_na_fill,\
-                       self.object_na_fill])
-        s = s[~mask]
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
 
         if self.verbose:
             print(f"Checking if {s.name} is binary...")
@@ -503,7 +512,9 @@ indicates it is NOT a date column.")
 so it is not binary.")
             self.is_binary = False
     
-    def _is_finite_numeric(self):
+    def _is_finite_numeric(self,
+                           s:pd.Series = None,
+                           return_:bool = False) -> bool:
         """
         Determines whether a series is finite numeric or not. If the series has
         only integer numeric values, then it is finite numeric. Otherwise, it
@@ -523,6 +534,19 @@ so it is not binary.")
         if self.is_finite_numeric is not None:
             return None
 
+        # if a series was passed in, use that instead of self.s, otherwise
+        # use self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
+        
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
+
         if self.verbose:
             print(f"Checking if {self.s.name} is finite numeric...")
 
@@ -531,10 +555,9 @@ so it is not binary.")
         # handle NaN values
         if self.verbose:
             print("Handling NaN values...")
-        s = self._handle_nan()
         
         # get the unique values
-        unique_values = s.unique
+        unique_values = self.GetUnique(drop_na=True)
 
         # test if the column name indicates that it is a date column
         if self._is_date_col_name():
@@ -582,8 +605,9 @@ so it is not binary.")
             self.is_finite_numeric = False
 
         # if the series is a date, then it is not finite numeric
-        elif isinstance(s.dtype, pd.DatetimeTZDtype) or isinstance(
-            s[0], pd.Timestamp) or np.issubdtype(s.dtype, np.datetime64):
+        elif isinstance(self.GetS(drop_na=True).dtype, pd.DatetimeTZDtype) or \
+             isinstance(self.GetS(drop_na=True)[0], pd.Timestamp) or \
+             np.issubdtype(self.GetS(drop_na=True).dtype, np.datetime64):
             self.is_finite_numeric = False
 
         # if the series has missing values, then it is not finite numeric
@@ -616,7 +640,9 @@ so it is not binary.")
 
 
     # next, we extend the pandas series class to include the is_date method
-    def _is_date(self):
+    def _is_date(self,
+                 s:pd.Series = None,
+                 return_:bool = False) -> bool:
         """
         Determines whether a series is a date or not. If the series is a date,
         then it is a date. Otherwise, it is not a date.
@@ -628,8 +654,21 @@ so it is not binary.")
         if self.is_date is not None:
             return None
 
+        # if a series was passed in, use that instead of self.s, otherwise
+        # use self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
+        
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
+
         if self.verbose:
-            print(f"Checking if {self.s.name} is date...")
+            print(f"Checking if {s.name} is date...")
 
         # handle NaN values
         # test if the column name indicates that it is a date column
@@ -647,13 +686,13 @@ so it is not binary.")
             self.is_date = False
 
         # if series is numeric, perform further checks
-        elif pd.api.types.is_numeric_dtype(self.s):
+        elif pd.api.types.is_numeric_dtype(s):
             try:
-                if (self.s < 0).any():
+                if (s < 0).any():
                     self.is_date = False
-                elif (self.s > 1e10).any():
+                elif (s > 1e10).any():
                     self.is_date = False
-                elif (self.s.dropna() != self.s.dropna().astype(int)).any():
+                elif (s != s.astype(int)).any():
                     self.is_date = False
                 elif len(unique_values) <= self.categorical_cutoff:
                     self.is_date = False
@@ -666,7 +705,7 @@ so it is not binary.")
                 # catch warnings that occur when converting to date
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    parsed = pd.to_datetime(self.s, errors='coerce')
+                    parsed = pd.to_datetime(s, errors='coerce')
 
                 # if any of the parsed dates are 1/1/1970, then it is not a date
                 if (parsed.dt.year.eq(1970).any() & 
@@ -674,7 +713,7 @@ so it is not binary.")
                     parsed.dt.day.eq(1).any()).any():
                     self.is_date = False
 
-                if pd.isnull(parsed).sum() / self.s.shape[0] > 0.05:
+                if pd.isnull(parsed).sum() / s.shape[0] > 0.05:
                     self.is_date = False
                 # check if parsed results have day, month, year components
                 has_components = (~parsed.dt.day.isnull() & \
@@ -685,7 +724,7 @@ so it is not binary.")
                     self.set_type('date')
                 # make sure the series is not categorical
                 elif len(unique_values) < max(self.categorical_cutoff * \
-                                              self.s.shape[0], 1000):
+                                              s.shape[0], 1000):
                     self.is_date = False
                 
                 else:
@@ -699,7 +738,9 @@ so it is not binary.")
 
     # next, we extend the pandas series class to include the is_categorical
     # method
-    def _is_categorical(self):
+    def _is_categorical(self,
+                        s:pd.Series = None,
+                        return_:bool = False) -> bool:
         """
         Determines whether a series is categorical or not. If the series has
         less than `categorical_cutoff` unique values, then it is
@@ -715,6 +756,19 @@ so it is not binary.")
         # stop early if self.is_categorical is not None
         if self.is_categorical is not None:
             return None
+
+        # if a series was passed in, use that instead of self.s, otherwise
+        # use self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
+        
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
 
         if self.verbose:
             print(f"Checking if {self.s.name} is categorical...")
@@ -785,7 +839,9 @@ so it is not binary.")
     # next, we extend the pandas series class to include the is_other_numeric method,
     # which serves as a catch-all for numeric series that are not binary, date,
     # categorical, or finite numeric
-    def _is_other_numeric(self):
+    def _is_other_numeric(self,
+                          s:pd.Series = None,
+                          return_:bool = False) -> bool:
         """
         Determines whether a series is other numeric or not. If the series is
         not:
@@ -804,6 +860,19 @@ so it is not binary.")
         if self.is_other_numeric is not None:
             return None
 
+        # if a series was passed in, use that instead of self.s, otherwise
+        # use self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
+        
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
+
         if self.verbose:
             print(f"Checking if {self.s.name} is other numeric...")
 
@@ -816,7 +885,7 @@ so it is not binary.")
         # if the series is binary, then it is not other numeric
         if self.verbose:
             print(f"Checking if {self.s.name} is binary...")
-        if self.is_binary():
+        if self.is_binary:
             self.is_other_numeric = False
 
         # if the series is a date, then it is not other numeric
@@ -842,7 +911,9 @@ so it is not binary.")
     # next, we extend the pandas series class to include the is_object method, which
     # serves as a catch-all for any series that is not binary, date, categorical, or
     # numeric
-    def _is_object(self):
+    def _is_object(self,
+                   s:pd.Series = None,
+                   return_:bool = False) -> bool:
         """
         Determines whether a series is an object or not. If the series is not:
             - binary
@@ -859,6 +930,19 @@ so it is not binary.")
         # stop early if self.is_object is not None
         if self.is_object is not None:
             return None
+
+        # if a series was passed in, use that instead of self.s, otherwise
+        # use self.s
+        if s is None:
+            s = self.GetS(drop_na=True)
+        else:
+            s = s.dropna()
+        
+        # filter out NaN values that have been recoded 
+        s = s[~s.eq(self.binary_na_fill) &\
+              ~s.eq(self.object_na_fill) &\
+              ~s.eq(self.finite_numeric_na_fill) &\
+              ~s.eq(self.date_na_fill)]
 
         if self.verbose:
             print(f"Checking if {self.s.name} is object...")
@@ -885,7 +969,9 @@ so it is not binary.")
         else:
             self.set_type('object')
 
-    def sb_dtype(self, return_:bool = False):
+    def sb_dtype(self, 
+                 s:pd.Series = None,
+                 return_:bool = False) -> bool:
         """
         Process the series data type into Small Business categories. This function
         determines the series Small Business data type for a given series. The 
@@ -913,35 +999,28 @@ so it is not binary.")
         if self.is_type_known:
             return bool_return()
 
-        # for each data type, check if the series is that data type
-        old_s = self.s.copy()
-        self.s = self.s.fillna(self.binary_na_fill)
-        self._is_binary()
+        # check each data type in order of most specific to least specific
+        self._is_binary(s=s)
         if self.is_binary:
             return bool_return('binary')
 
-        self.s = old_s.copy().fillna(self.date_na_fill)
-        self._is_date()
+        self._is_date(s=s)
         if self.is_date:
             return bool_return('date')
 
-        self.s = old_s.copy().fillna(self.categorical_na_fill)
-        self._is_categorical()
+        self._is_categorical(s=s)
         if self.is_categorical:
             return bool_return('categorical')
 
-        self.s = old_s.copy().fillna(self.finite_numeric_na_fill)
-        self._is_finite_numeric()
+        self._is_finite_numeric(s=s)
         if self.is_finite_numeric:
             return bool_return('finite_numeric')
 
-        self.s = old_s.copy().fillna(self.other_numeric_na_fill)
-        self._is_other_numeric()
+        self._is_other_numeric(s=s)
         if self.is_other_numeric:
             return bool_return('other_numeric')
 
-        self.s = old_s.copy().fillna(self.object_na_fill)
-        self._is_object()
+        self._is_object(s=s)
         if self.is_object:
             return bool_return('object')
 
@@ -961,10 +1040,10 @@ so it is not binary.")
         if not self.is_binary:
             return None
 
-        # otherwise, format the series as an 8-bit integer:
+        # otherwise, format the series as an 16-bit integer:
 
         # fill na values
-        self.s = self.s.fillna(self.binary_na_fill)
+        self.s = self.GetS()
 
         # map possible binary values to 0 and 1
         binary_map = {
@@ -988,10 +1067,10 @@ so it is not binary.")
             self.s = self.s.str.lower()
 
         # map the values in the series to 0 and 1
-        self.s_fmt = self.s.map(binary_map)
+        self.s_fmt = self.GetS().map(binary_map).fillna(self.binary_na_fill)
 
-        # convert the series to an 8-bit integer
-        self.s_fmt = self.s_fmt.astype("int8")
+        # convert the series to an 16-bit integer
+        self.s_fmt = self.s_fmt.astype("int16")
 
     def format_date(self):
         """
@@ -1005,9 +1084,20 @@ so it is not binary.")
         if not self.is_date:
             return None
 
-        # otherwise, format the series as a datetime\
-        self.s = self.s.fillna(self.date_na_fill)
-        self.s_fmt = pd.to_datetime(self.s)
+        # otherwise, format the series as a datetime
+        s = pd.to_datetime(self.GetS(), unit='D')\
+              .fillna(self.date_na_fill)
+        print(1)
+        print(f"1: s.dtype: {s.dtype}\n\ns: {s}\n")
+        if s.dtype == "datetime64[ns]":
+            self.s_fmt = s
+            print(2)
+            print(f"2: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
+        else:
+            print(3)
+            self.s_fmt = pd.to_datetime(s, unit='D')
+            
+            print(f"3: s_fmt.dtype: {self.s_fmt.dtype}\n\ns_fmt: {self.s_fmt}\n")
 
     def format_categorical(self):
         """
@@ -1069,7 +1159,7 @@ so it is not binary.")
         if not self.is_type_known:
             self.sb_dtype()
 
-        # if the series is not finite numeric, then end the function
+        # if the series is not an object, then end the function
         if not self.is_object:
             return None
         
