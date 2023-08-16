@@ -10,7 +10,23 @@ import seaborn as sns
 from matplotlib.ticker import FuncFormatter
 from matplotlib.colors import ListedColormap
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_curve, auc
+import statsmodels.api as sm
+from scipy.stats import ks_2samp
+
 _figsize = (10, 7)
+
+def _get_significance_band(p_value, statistic):
+    if p_value < 0.01:
+        significance_statement = f"Extremely likely that the {statistic} is significant"
+    elif p_value < 0.05:
+        significance_statement = f"Very likely that the {statistic} is significant"
+    elif p_value < 0.10:
+        significance_statement = f"Somewhat likely that the {statistic} is significant"
+    else:
+        significance_statement = f"Unlikely that the {statistic} is significant"
+    return significance_statement
 
 def _format_plot(feature,
                  target,
@@ -206,3 +222,119 @@ def binary_boxplot(feature,
                     bbox_inches="tight")
 
     return ax
+
+def binary_roc_auc(feature, target, alpha=0.05, figsize=_figsize, save_fig=False, save_path=None):
+
+
+
+    # Reshape feature for scikit-learn
+    feature = feature.values.reshape(-1, 1)
+
+    # Fit logistic regression model
+    log_reg = LogisticRegression()
+    log_reg.fit(feature, target)
+
+    # Predict probability
+    probas = log_reg.predict_proba(feature)[:, 1]
+
+    # Compute ROC curve and AUC
+    fpr, tpr, _ = roc_curve(target, probas)
+    roc_auc = auc(fpr, tpr)
+
+    # Fit logistic regression model with statsmodels for p-value
+    feature_with_const = sm.add_constant(feature)
+    logit_model = sm.Logit(target, feature_with_const).fit(disp=0)
+    p_value = logit_model.pvalues[1]
+
+    # get significance band
+    s_band = _get_significance_band(p_value, 'coefficient')
+
+    # Plot ROC curve
+    plt.figure(figsize=_figsize)
+    plt.plot(fpr, tpr, color='darkorange', label='ROC curve (AUC = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(f'Receiver Operating Characteristic from \
+Single-Variable Logistic Regression\n\
+[Coefficient]={logit_model.params[1]:.3f}, \
+[p-value]={p_value:0.4f}, \
+{s_band}')
+    plt.legend(loc='lower right')
+
+    # Annotate plot with p-value and other details if needed
+    significance = "Significant" if p_value < alpha else "Not Significant"
+    annotation = f"p-value: {p_value:.3f}\n{significance}\nCoefficient: {logit_model.params[1]:.3f}"
+    plt.annotate(annotation, xy=(0.6, 0.2), xycoords='axes fraction')
+
+    plt.show()
+
+
+def plot_ks_statistic(feature,
+                      target,
+                      alpha=0.05,
+                      figsize=_figsize,
+                      save_fig=False,
+                      save_path=None):
+    # Create figure
+    plt.figure(figsize=figsize)    
+
+    # Separate feature by target classes
+    class_0 = feature[target == 0]
+    class_1 = feature[target == 1]
+
+    # Compute empirical CDF for each class
+    def cdf_0(x):
+        return (class_0 <= x).sum() / len(class_0)
+    def cdf_1(x):
+        return (class_1 <= x).sum() / len(class_1)
+
+    # Compute K-S statistic
+    ks_stat, p_value = ks_2samp(class_0, class_1)
+
+    # Create range for x-axis
+    x_range = np.linspace(feature.min(), feature.max(), 1000)
+
+    # Get significance band
+    s_band = _get_significance_band(p_value, 'difference in CDFs')
+
+    # Compute significance level & get statement
+    if p_value < alpha:
+        significance_statement = f"Significant at the {alpha:.1%} level"
+        significance_statement2 = f"Significant until the {p_value:.5%} level"
+    else:
+        significance_statement = f"Not significant at the {alpha:.1%} level"
+        significance_statement2 = significance_statement
+
+    # Plot CDFs
+    plt.plot(x_range,
+             [cdf_0(x) for x in x_range],
+             label='class 0 CDF'.replace("class", target.name).replace("_", " ").title(),
+             color='navy')
+    plt.plot(x_range,
+             [cdf_1(x) for x in x_range],
+             label='class 1 CDF'.replace("class", target.name).replace("_", " ").title(),
+             color='darkorange')
+    plt.xlabel('feature Value'.replace("feature", feature.name).replace("_", " ").title())
+    plt.ylabel('CDF')
+    plt.title(f'Kolmogorov-Smirnov Plot\n{s_band}')
+    plt.legend()
+
+    # Annotate with K-S statistic and p-value
+    annotation = f"K-S Statistic: {ks_stat:.3f}\np-value: {p_value:.3f}\n"
+    annotation += significance_statement
+    if significance_statement != significance_statement2:
+        annotation += f"\n{significance_statement2}"
+    plt.annotate(annotation, xy=(0.6, 0.2), xycoords='axes fraction')
+
+    if save_fig:
+        if save_path is None:
+            save_path = "plots"
+        plt.savefig(f"{save_path}/{feature}_ks_statistic.png",
+                    dpi=300,
+                    bbox_inches="tight")
+
+    plt.show()
+
