@@ -6,12 +6,10 @@ data analysis on a binary classification problem.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.ticker import FuncFormatter
-from matplotlib.colors import ListedColormap
-
-# import matplotlib ax for type annotations
 from matplotlib.axes import Axes
+import seaborn as sns
+
+
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
@@ -250,7 +248,7 @@ def binary_roc_auc(feature: pd.Series,
     feature_name = feature.name
 
     # Fit logistic regression model
-    log_reg = LogisticRegression()
+    log_reg = LogisticRegression(penalty='none')
     log_reg.fit(feature.values.reshape(-1,1), target)
 
     # Predict probability
